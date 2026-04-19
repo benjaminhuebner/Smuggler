@@ -1,0 +1,59 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.25879,0.16272,0.56592,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "Pfad 1.svg",
+          "name" : "UnquarantineForeground",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -97.39494825155509,
+              0.2152007326938019
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "Pfad.svg",
+          "name" : "UnquarantineBackground",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              71.60505174844491,
+              109.21520073269369
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
