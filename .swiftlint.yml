@@ -1,0 +1,114 @@
+only_rules:
+  # --- Idiomatic Swift ---
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - explicit_init
+  - first_where
+  - last_where
+  - reduce_into
+  - sorted_first_last
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+
+  # --- Cleanliness ---
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - comma
+  - duplicate_imports
+  - empty_parameters
+  - empty_parentheses_with_trailing_closure
+  - operator_usage_whitespace
+  - implicit_optional_initialization
+  - redundant_void_return
+  - return_arrow_whitespace
+  - trailing_newline
+  - trailing_whitespace
+  - vertical_whitespace
+  - vertical_whitespace_opening_braces
+  - vertical_whitespace_closing_braces
+
+  # --- Naming ---
+  - file_name_no_space
+  - identifier_name
+  - type_name
+  - generic_type_name
+
+  # --- Correctness ---
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+  - private_over_fileprivate
+  - prohibited_super_call
+  - unused_closure_parameter
+  - unused_optional_binding
+
+  # --- Async/concurrency hygiene ---
+  - convenience_type
+
+  # --- Custom rule plumbing ---
+  - custom_rules
+
+excluded:
+  - .build
+  - DerivedData
+  - .swiftpm
+
+# --- Rule configuration ---
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  allowed_symbols: ["_"]
+  excluded:
+    - id
+    - ok
+    - to
+    - up
+    - x
+    - y
+    - z
+
+type_name:
+  min_length: 3
+  max_length:
+    warning: 50
+    error: 60
+
+# --- Custom rules (SwiftUI-specific) ---
+
+custom_rules:
+
+  prefer_final_class:
+    name: "Prefer final class"
+    regex: '^\s*(public\s+|internal\s+|private\s+|fileprivate\s+)?class\s+(?!final\s)\w+'
+    message: "Mark classes `final` unless inheritance is required. Use struct when possible."
+    severity: warning
+
+  private_observed_object:
+    name: "@ObservedObject must be private"
+    regex: '^\s*@ObservedObject\s+(?!private\s)'
+    message: "`@ObservedObject` properties must be `private` — pass the model in via init, don't expose it as API."
+    severity: error
+
+  private_environment_object:
+    name: "@EnvironmentObject must be private"
+    regex: '^\s*@EnvironmentObject\s+(?!private\s)'
+    message: "`@EnvironmentObject` properties must be `private`."
+    severity: error
+
+  no_navigation_view:
+    name: "NavigationView is deprecated"
+    regex: '\bNavigationView\s*\{'
+    message: "Use `NavigationStack` (with `.navigationDestination(for:)`) or `NavigationSplitView`. `NavigationView` is deprecated."
+    severity: error
