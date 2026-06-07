@@ -49,7 +49,7 @@ struct FileRowView: View {
                 if item.status == .processing {
                     ProgressView(value: displayProgress)
                         .progressViewStyle(.linear)
-                        .tint(Color("UnquarantinePurple"))
+                        .tint(Color("UnquarantineYellow"))
                         .animation(.easeInOut(duration: 0.2), value: displayProgress)
                 } else if style == .list {
                     Text(statusDescription)

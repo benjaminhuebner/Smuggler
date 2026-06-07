@@ -69,7 +69,7 @@ struct ContentView: View {
             }
             .scrollEdgeEffectStyle(.hard, for: .top)
             .scrollEdgeEffectStyle(.hard, for: .bottom)
-            .tint(Color("UnquarantinePurple"))
+            .tint(Color("UnquarantineYellow"))
             .safeAreaInset(edge: .bottom) {
                 statusBar
             }

@@ -25,7 +25,7 @@ struct DropZoneView: View {
     private var compactView: some View {
         HStack(spacing: 10) {
             Image(systemName: isTargeted ? "arrow.down.circle.fill" : "arrow.down.circle")
-                .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary.opacity(0.6))
+                .foregroundStyle(isTargeted ? Color("UnquarantineYellow") : Color.secondary.opacity(0.6))
                 .font(.title3)
                 .contentTransition(.symbolEffect(.replace))
 
@@ -73,7 +73,7 @@ struct DropZoneView: View {
                 .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(
                     isTargeted
-                        ? AnyShapeStyle(Color.accentColor)
+                        ? AnyShapeStyle(Color("UnquarantineYellow"))
                         : AnyShapeStyle(.secondary)
                 )
                 .contentTransition(.symbolEffect(.replace.magic(fallback: .downUp.byLayer)))
@@ -108,7 +108,7 @@ struct DropZoneView: View {
                         .font(.body.weight(.medium))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color("UnquarantinePurple"))
+                .tint(Color("UnquarantineYellow"))
                 .controlSize(.large)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
@@ -138,10 +138,10 @@ struct DropZoneView: View {
 
             // Solid border + fill — targeted state
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.accentColor.opacity(0.05))
+                .fill(Color("UnquarantineYellow").opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1.5)
+                        .strokeBorder(Color("UnquarantineYellow").opacity(0.4), lineWidth: 1.5)
                 )
                 .opacity(isTargeted ? 1 : 0)
         }
