@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5C00000000000000000000C3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C00000000000000000000B2 /* Sparkle */; };
 		EABB000000000000000000E5 /* UnquarantineFinderExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EA11000000000000000000AA /* UnquarantineFinderExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -93,6 +94,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C00000000000000000000C3 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -155,6 +157,7 @@
 			);
 			name = Unquarantine;
 			packageProductDependencies = (
+				5C00000000000000000000B2 /* Sparkle */,
 			);
 			productName = Unquarantine;
 			productReference = CAB97CD22F6EAFDB0052564E /* Unquarantine.app */;
@@ -236,6 +239,9 @@
 			);
 			mainGroup = CAB97CC92F6EAFDB0052564E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5C00000000000000000000A1 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CAB97CD32F6EAFDB0052564E /* Products */;
 			projectDirPath = "";
@@ -653,6 +659,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5C00000000000000000000A1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C00000000000000000000B2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C00000000000000000000A1 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CAB97CCA2F6EAFDB0052564E /* Project object */;
 }
