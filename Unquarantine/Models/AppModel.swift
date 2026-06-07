@@ -240,9 +240,11 @@ final class AppModel {
             if let coordinator, coordinator.quitAfter {
                 await finishServiceMode(coordinator)
             } else if action == "open" {
-                for item in items where entryIDs.contains(item.id) && item.status.isSuccessful {
-                    NSWorkspace.shared.open(item.url)
-                }
+                let urlsToOpen =
+                    items
+                    .filter { entryIDs.contains($0.id) && $0.status.isSuccessful }
+                    .map(\.url)
+                confirmAndOpen(urlsToOpen)
             }
         }
         coordinator?.processingTask = task
@@ -258,9 +260,8 @@ final class AppModel {
         }
 
         if coordinator.action == "open" {
-            for item in batchItems where item.status.isSuccessful {
-                NSWorkspace.shared.open(item.url)
-            }
+            let urlsToOpen = batchItems.filter(\.status.isSuccessful).map(\.url)
+            confirmAndOpen(urlsToOpen)
         }
 
         serviceMode?.terminationTask?.cancel()
@@ -275,6 +276,36 @@ final class AppModel {
             } else {
                 self?.serviceMode = nil
             }
+        }
+    }
+
+    // MARK: - Open (confirmed)
+
+    // Removing the quarantine attribute strips macOS's own Gatekeeper launch check,
+    // and an unquarantine:// request can come from any process, so a human must
+    // approve the launch before we open anything on the request's behalf.
+    private func confirmAndOpen(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText =
+            urls.count == 1
+            ? String(
+                localized: "Open \(urls[0].lastPathComponent)?",
+                comment: "Confirm dialog title: open a single file after removing quarantine")
+            : String(
+                localized: "Open \(urls.count) items?",
+                comment: "Confirm dialog title: open multiple files after removing quarantine")
+        alert.informativeText = String(
+            localized: "Quarantine was removed. Only open items you trust.",
+            comment: "Confirm dialog body: warn before opening unquarantined files")
+        alert.addButton(withTitle: String(localized: "Open", comment: "Confirm dialog: open button"))
+        alert.addButton(withTitle: String(localized: "Cancel", comment: "Confirm dialog: cancel button"))
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        for url in urls {
+            NSWorkspace.shared.open(url)
         }
     }
 
