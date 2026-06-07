@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>SUFeedURL</key>
+	<string>https://benjaminhuebner.com/apps/unquarantine/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_WITH_REAL_EDDSA_PUBLIC_KEY_BEFORE_RELEASE</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
