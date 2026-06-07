@@ -15,6 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Shared model so both the window and the services/URL handler use the same state.
     let appModel = AppModel()
 
+    // Owns the Sparkle updater for the app's lifetime. Starts itself; scheduled
+    // background checks run per the user's first-run opt-in. In service mode the
+    // session quits within ~1s and the menu command is unreachable, so no update
+    // UI surfaces there.
+    let updater = UpdaterController()
+
     /// Becomes `true` once the initial launch sequence is complete.
     /// Any URL received before this is a cold-launch URL (from extension).
     var isReady = false

@@ -47,6 +47,10 @@ struct UnquarantineApp: App {
         .defaultSize(width: 520, height: 380)
         .windowResizability(.contentSize)
         .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton(updater: appDelegate.updater)
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("Open File…") {
                     openFiles?()
@@ -59,5 +63,18 @@ struct UnquarantineApp: App {
                 .keyboardShortcut("O", modifiers: [.shift, .command])
             }
         }
+    }
+}
+
+// MARK: - Check for Updates Command
+
+private struct CheckForUpdatesButton: View {
+    let updater: UpdaterController
+
+    var body: some View {
+        Button("Check for Updates…") {
+            updater.checkForUpdates()
+        }
+        .disabled(!updater.canCheckForUpdates)
     }
 }
