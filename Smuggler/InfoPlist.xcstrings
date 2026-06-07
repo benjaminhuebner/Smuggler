@@ -1,0 +1,42 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleName" : {
+      "comment" : "Brand name — do not translate.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smuggler"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "Remove Quarantine with Smuggler" : {
+      "comment" : "macOS Services menu item title (NSServices > NSMenuItem > default in Info.plist)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quarantäne aufheben mit Smuggler"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

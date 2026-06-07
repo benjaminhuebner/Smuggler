@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SUFeedURL</key>
+	<string>https://benjaminhuebner.com/apps/smuggler/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_WITH_REAL_EDDSA_PUBLIC_KEY_BEFORE_RELEASE</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.benjaminhuebner.Smuggler</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>smuggler</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Remove Quarantine with Smuggler</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>removeQuarantine</string>
+			<key>NSPortName</key>
+			<string>Smuggler</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+			<key>NSSendTypes</key>
+			<array>
+				<string>NSFilenamesPboardType</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
