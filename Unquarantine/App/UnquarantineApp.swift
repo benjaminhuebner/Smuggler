@@ -15,8 +15,8 @@ struct FileMenuAction {
 }
 
 extension FocusedValues {
-    @Entry var openFiles: FileMenuAction? = nil
-    @Entry var openFolder: FileMenuAction? = nil
+    @Entry var openFiles: FileMenuAction?
+    @Entry var openFolder: FileMenuAction?
 }
 
 // MARK: - App

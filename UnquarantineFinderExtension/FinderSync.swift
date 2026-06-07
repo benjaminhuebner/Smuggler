@@ -5,8 +5,8 @@
 //  Created by Benjamin Hübner on 21.03.26.
 //
 
-import FinderSync
 import AppKit
+import FinderSync
 import os
 
 private let logger = Logger(
@@ -15,7 +15,6 @@ private let logger = Logger(
 )
 
 final class FinderSync: FIFinderSync {
-
     override init() {
         super.init()
         FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
@@ -33,14 +32,16 @@ final class FinderSync: FIFinderSync {
 
         let submenu = NSMenu(title: "Unquarantine")
         submenu.addItem(
-            withTitle: String(localized: "Remove Quarantine and Open",
-                              comment: "Finder context menu: remove quarantine and open the file"),
+            withTitle: String(
+                localized: "Remove Quarantine and Open",
+                comment: "Finder context menu: remove quarantine and open the file"),
             action: #selector(removeAndOpen(_:)),
             keyEquivalent: ""
         )
         submenu.addItem(
-            withTitle: String(localized: "Remove Quarantine",
-                              comment: "Finder context menu: remove quarantine only"),
+            withTitle: String(
+                localized: "Remove Quarantine",
+                comment: "Finder context menu: remove quarantine only"),
             action: #selector(removeOnly(_:)),
             keyEquivalent: ""
         )

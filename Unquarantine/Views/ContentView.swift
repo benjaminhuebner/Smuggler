@@ -5,8 +5,8 @@
 //  Created by Benjamin Hübner on 21.03.26.
 //
 
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct ContentView: View {
     let appModel: AppModel
@@ -154,21 +154,27 @@ struct ContentView: View {
     // MARK: - File Panel
 
     private func openPanel() {
-        runOpenPanel(canChooseFiles: true, canChooseDirectories: true,
-                     message: String(localized: "Choose files or folders to free from quarantine",
-                                     comment: "NSOpenPanel message for files and folders"))
+        runOpenPanel(
+            canChooseFiles: true, canChooseDirectories: true,
+            message: String(
+                localized: "Choose files or folders to free from quarantine",
+                comment: "NSOpenPanel message for files and folders"))
     }
 
     private func openFilePanel() {
-        runOpenPanel(canChooseFiles: true, canChooseDirectories: false,
-                     message: String(localized: "Choose files to free from quarantine",
-                                     comment: "NSOpenPanel message for files only"))
+        runOpenPanel(
+            canChooseFiles: true, canChooseDirectories: false,
+            message: String(
+                localized: "Choose files to free from quarantine",
+                comment: "NSOpenPanel message for files only"))
     }
 
     private func openFolderPanel() {
-        runOpenPanel(canChooseFiles: false, canChooseDirectories: true,
-                     message: String(localized: "Choose folders to free from quarantine",
-                                     comment: "NSOpenPanel message for folders only"))
+        runOpenPanel(
+            canChooseFiles: false, canChooseDirectories: true,
+            message: String(
+                localized: "Choose folders to free from quarantine",
+                comment: "NSOpenPanel message for folders only"))
     }
 
     private func runOpenPanel(canChooseFiles: Bool, canChooseDirectories: Bool, message: String) {

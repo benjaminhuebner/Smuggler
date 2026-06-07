@@ -120,7 +120,8 @@ struct DropZoneView: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(isTargeted ? "Release to remove quarantine" : "Drop zone. Drag files or folders to remove quarantine.")
+        .accessibilityLabel(
+            isTargeted ? "Release to remove quarantine" : "Drop zone. Drag files or folders to remove quarantine.")
     }
 
     // MARK: - Background

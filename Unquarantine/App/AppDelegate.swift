@@ -40,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         error errorPointer: AutoreleasingUnsafeMutablePointer<NSString?>
     ) {
         guard let urls = pboard.readObjects(forClasses: [NSURL.self]) as? [URL],
-              !urls.isEmpty else {
+            !urls.isEmpty
+        else {
             logger.warning("Services handler: no file paths on pasteboard")
             return
         }
