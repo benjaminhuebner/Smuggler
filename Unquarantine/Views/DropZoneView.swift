@@ -106,6 +106,7 @@ struct DropZoneView: View {
                 } label: {
                     Label("Choose Files…", systemImage: "folder")
                         .font(.body.weight(.medium))
+                        .foregroundStyle(.black)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color("UnquarantineYellow"))
