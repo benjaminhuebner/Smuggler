@@ -29,22 +29,10 @@ nonisolated enum FileStatus: Equatable, Sendable {
     }
 }
 
-/// Tracks progress for directory processing (file count based).
-nonisolated struct ProcessingProgress: Equatable, Sendable {
-    var processed: Int = 0
-    var total: Int = 0
-
-    var fraction: Double {
-        guard total > 0 else { return 0 }
-        return Double(processed) / Double(total)
-    }
-}
-
 nonisolated struct FileItem: Identifiable, Equatable, Sendable {
     let id: UUID
     let url: URL
     var status: FileStatus
-    var progress: ProcessingProgress = ProcessingProgress()
     let timestamp: Date
 
     var name: String { url.lastPathComponent }

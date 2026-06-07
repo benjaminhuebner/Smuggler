@@ -30,11 +30,13 @@ final class UpdaterController {
         let updater = controller.updater
         canCheckForUpdates = updater.canCheckForUpdates
         // Mirror Sparkle's KVO flag into observable storage so the menu item's
-        // enabled state tracks an in-progress check. The flag changes on the
-        // main thread, so assuming main-actor isolation here is safe.
-        observation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] updater, _ in
-            MainActor.assumeIsolated {
-                self?.canCheckForUpdates = updater.canCheckForUpdates
+        // enabled state tracks an in-progress check. Hop to the main actor via
+        // the Sendable Bool from the change dict rather than asserting isolation,
+        // so this is safe even if Sparkle ever fires the KVO off the main thread.
+        observation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
+            guard let newValue = change.newValue else { return }
+            Task { @MainActor in
+                self?.canCheckForUpdates = newValue
             }
         }
     }

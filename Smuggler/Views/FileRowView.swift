@@ -26,11 +26,8 @@ struct FileRowView: View {
 
     private var isFinished: Bool { item.status != .processing }
 
-    /// Displayed progress: the higher of the real file-based progress
-    /// and the smooth minimum animation, so the bar never jumps backwards.
     private var displayProgress: Double {
-        guard !isFinished else { return 1.0 }
-        return max(animatedProgress, item.progress.fraction)
+        isFinished ? 1.0 : animatedProgress
     }
 
     var body: some View {
@@ -106,10 +103,12 @@ struct FileRowView: View {
             }.value
             icon = loadedIcon
 
-            // Animate progress bar from 0 to 1 while processing
+            // Ease toward 0.9 (not 1.0) while processing so the bar shows
+            // motion without falsely signalling completion. The duration is
+            // long with ease-out so it decelerates and lingers near the end.
             guard item.status == .processing else { return }
-            withAnimation(.easeInOut(duration: 1.0)) {
-                animatedProgress = 1.0
+            withAnimation(.easeOut(duration: 8.0)) {
+                animatedProgress = 0.9
             }
         }
     }

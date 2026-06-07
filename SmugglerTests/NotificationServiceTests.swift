@@ -23,6 +23,10 @@ struct NotificationServiceTests {
         FileItem(url: URL(filePath: path), status: .error(.permissionDenied(URL(filePath: path))))
     }
 
+    private func cancelledItem(_ path: String) -> FileItem {
+        FileItem(url: URL(filePath: path), status: .cancelled)
+    }
+
     @Test("Success, partial, and failure produce distinct titles")
     func titlesAreDistinct() {
         let successTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
@@ -69,6 +73,18 @@ struct NotificationServiceTests {
         let partialTitle = NotificationService.buildContent(for: items).title
         let allCleanTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
         #expect(partialTitle != allCleanTitle)
+    }
+
+    @Test("All-cancelled batch does not use the success title")
+    func allCancelledIsNotSuccess() {
+        let cancelledTitle = NotificationService.buildContent(
+            for: [cancelledItem("/tmp/a.app"), cancelledItem("/tmp/b.app")]
+        ).title
+        let successTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
+        let failureTitle = NotificationService.buildContent(for: [failedItem("/tmp/a.app")]).title
+
+        #expect(cancelledTitle != successTitle)
+        #expect(cancelledTitle != failureTitle)
     }
 
     @Test("Empty item list is safe and returns a non-empty title")

@@ -74,6 +74,30 @@ enum NotificationService {
         let hasErrors = items.contains(where: \.status.hasErrors)
         let total = items.count
 
+        // Nothing was cleaned. Distinguish genuine failures from a batch the
+        // user cancelled (no successes, but also no errors) so success copy is
+        // never shown when no quarantine was actually removed.
+        if successCount == 0 {
+            if !hasErrors {
+                return (
+                    String(localized: "Cancelled", comment: "Notification title: nothing processed"),
+                    String(
+                        localized: "No quarantine was removed.",
+                        comment: "Notification body: cancelled, nothing removed")
+                )
+            }
+            let name = firstName
+            let body =
+                total == 1
+                ? String(
+                    localized: "Could not remove quarantine from \(name).",
+                    comment: "Notification body: single file failure")
+                : String(
+                    localized: "Could not remove quarantine from \(total) items.",
+                    comment: "Notification body: multiple files failure")
+            return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
+        }
+
         if !hasErrors {
             let name = firstName
             let body =
@@ -85,19 +109,6 @@ enum NotificationService {
                     localized: "\(total) items are ready to use.",
                     comment: "Notification body: multiple files success")
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), body)
-        }
-
-        if successCount == 0 {
-            let name = items[0].name
-            let body =
-                total == 1
-                ? String(
-                    localized: "Could not remove quarantine from \(name).",
-                    comment: "Notification body: single file failure")
-                : String(
-                    localized: "Could not remove quarantine from \(total) items.",
-                    comment: "Notification body: multiple files failure")
-            return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
         }
 
         return (

@@ -72,8 +72,11 @@ final class AppModel {
         enqueue(urls: urls)
         var seenIDs = Set<UUID>()
         let taskEntries: [(id: UUID, url: URL)] = urls.compactMap { url in
+            // Skip items that already have a running task — a second concurrent
+            // process(urls:) for a still-processing URL must not spawn a duplicate.
             guard let item = items.first(where: { $0.url == url }),
                 item.status == .processing,
+                activeTasks[item.id] == nil,
                 seenIDs.insert(item.id).inserted
             else { return nil }
             return (item.id, url)
@@ -93,21 +96,9 @@ final class AppModel {
                 let start = ContinuousClock.now
 
                 let status: FileStatus = await withTaskGroup(of: FileStatus.self) { inner in
-                    inner.addTask { [weak self] in
+                    inner.addTask {
                         do {
-                            let result = try service.removeQuarantineRecursively(url) { [weak self] processed in
-                                guard processed <= 1 || processed % 50 == 0 else { return }
-                                Task { @MainActor in
-                                    guard let self,
-                                        let idx = self.items.firstIndex(where: { $0.id == id }),
-                                        self.items[idx].status == .processing
-                                    else { return }
-                                    var progress = self.items[idx].progress
-                                    progress.processed = processed
-                                    if processed > progress.total { progress.total = processed }
-                                    self.items[idx].progress = progress
-                                }
-                            }
+                            let result = try service.removeQuarantineRecursively(url)
                             if result.errors.isEmpty {
                                 return .clean
                             } else if result.cleaned > 0 {
@@ -144,10 +135,7 @@ final class AppModel {
                 if let idx = items.firstIndex(where: { $0.id == id }),
                     items[idx].status == .processing
                 {
-                    var item = items[idx]
-                    item.status = status
-                    item.progress.processed = item.progress.total
-                    items[idx] = item
+                    items[idx].status = status
                     processingCount -= 1
                 }
                 activeTasks.removeValue(forKey: id)

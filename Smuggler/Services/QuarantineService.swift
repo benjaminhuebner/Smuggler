@@ -102,13 +102,9 @@ nonisolated struct QuarantineService: Sendable {
 
     /// Removes the quarantine attribute from `url` and, if `url` is a directory,
     /// from every file inside it recursively.
-    /// Calls `onProgress` after each file is processed.
     /// Throws immediately if `url` does not exist.
     /// Per-file errors are collected in the returned `QuarantineResult` rather than thrown.
-    func removeQuarantineRecursively(
-        _ url: URL,
-        onProgress: (@Sendable (Int) -> Void)? = nil
-    ) throws -> QuarantineResult {
+    func removeQuarantineRecursively(_ url: URL) throws -> QuarantineResult {
         guard url.isFileURL else {
             throw QuarantineError.invalidURL(url)
         }
@@ -129,7 +125,6 @@ nonisolated struct QuarantineService: Sendable {
 
         var result = QuarantineResult()
         removeQuarantineFromItem(url, into: &result)
-        onProgress?(result.processed)
 
         if isDir {
             guard
@@ -151,7 +146,6 @@ nonisolated struct QuarantineService: Sendable {
                     continue
                 }
                 removeQuarantineFromItem(itemURL, into: &result)
-                onProgress?(result.processed)
             }
         }
 
