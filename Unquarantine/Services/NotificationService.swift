@@ -13,7 +13,6 @@ private let logger = Logger(subsystem: "com.benjaminhuebner.Unquarantine", categ
 /// Sends local notifications when quarantine removal completes in headless mode
 /// (Services or Finder Extension). Not used for in-app drag & drop or file menu.
 enum NotificationService {
-
     // MARK: - Authorization
 
     static func requestAuthorization() async {
@@ -37,8 +36,10 @@ enum NotificationService {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
 
-        guard settings.authorizationStatus == .authorized
-            || settings.authorizationStatus == .provisional else {
+        guard
+            settings.authorizationStatus == .authorized
+                || settings.authorizationStatus == .provisional
+        else {
             logger.info("Notifications not authorized, skipping")
             return
         }
@@ -66,34 +67,44 @@ enum NotificationService {
     // MARK: - Content Building (pure, testable)
 
     static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
+        guard let firstName = items.first?.name else {
+            return (String(localized: "Quarantine Removed", comment: "Notification title: success"), "")
+        }
         let successCount = items.count(where: \.status.isSuccessful)
         let hasErrors = items.contains(where: \.status.hasErrors)
         let total = items.count
 
         if !hasErrors {
-            let name = items[0].name
-            let body = total == 1
-                ? String(localized: "\(name) is ready to use.",
-                         comment: "Notification body: single file success")
-                : String(localized: "\(total) items are ready to use.",
-                         comment: "Notification body: multiple files success")
+            let name = firstName
+            let body =
+                total == 1
+                ? String(
+                    localized: "\(name) is ready to use.",
+                    comment: "Notification body: single file success")
+                : String(
+                    localized: "\(total) items are ready to use.",
+                    comment: "Notification body: multiple files success")
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), body)
         }
 
         if successCount == 0 {
             let name = items[0].name
-            let body = total == 1
-                ? String(localized: "Could not remove quarantine from \(name).",
-                         comment: "Notification body: single file failure")
-                : String(localized: "Could not remove quarantine from \(total) items.",
-                         comment: "Notification body: multiple files failure")
+            let body =
+                total == 1
+                ? String(
+                    localized: "Could not remove quarantine from \(name).",
+                    comment: "Notification body: single file failure")
+                : String(
+                    localized: "Could not remove quarantine from \(total) items.",
+                    comment: "Notification body: multiple files failure")
             return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
         }
 
         return (
             String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"),
-            String(localized: "\(successCount) of \(total) items cleaned. Some items had errors.",
-                   comment: "Notification body: partial success")
+            String(
+                localized: "\(successCount) of \(total) items cleaned. Some items had errors.",
+                comment: "Notification body: partial success")
         )
     }
 }

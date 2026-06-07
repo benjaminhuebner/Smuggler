@@ -5,9 +5,9 @@
 //  Created by Benjamin Hübner on 21.03.26.
 //
 
-
-import Testing
 import Foundation
+import Testing
+
 @testable import Unquarantine
 
 @Suite("QuarantineService")
@@ -142,8 +142,8 @@ struct QuarantineServiceTests {
     }
 
     @Test("Throws invalidURL for non-file URL")
-    func throwsInvalidURLForNonFileURL() {
-        let url = URL(string: "https://example.com")!
+    func throwsInvalidURLForNonFileURL() throws {
+        let url = try #require(URL(string: "https://example.com"))
 
         #expect(throws: QuarantineError.invalidURL(url)) {
             _ = try service.removeQuarantineRecursively(url)
@@ -191,7 +191,7 @@ struct QuarantineServiceTests {
 
         let result = try service.removeQuarantineRecursively(dir)
 
-        #expect(result.processed == 1) // only the directory itself
+        #expect(result.processed == 1)  // only the directory itself
         #expect(result.cleaned == 0)
         #expect(result.errors.isEmpty)
     }
@@ -204,7 +204,7 @@ struct QuarantineServiceTests {
 
         let result = try service.removeQuarantineRecursively(dir)
 
-        #expect(result.cleaned == 3) // dir + 2 files
+        #expect(result.cleaned == 3)  // dir + 2 files
         #expect(result.errors.isEmpty)
         #expect(service.hasQuarantine(dir) == false)
     }

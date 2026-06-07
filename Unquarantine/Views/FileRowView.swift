@@ -5,8 +5,8 @@
 //  Created by Benjamin Hübner on 21.03.26.
 //
 
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - FileRowView
 
@@ -22,6 +22,8 @@ struct FileRowView: View {
     @State private var icon: NSImage?
     @State private var isHovered = false
 
+    private static let placeholderIcon = NSImage(systemSymbolName: "doc", accessibilityDescription: nil) ?? NSImage()
+
     private var isFinished: Bool { item.status != .processing }
 
     /// Displayed progress: the higher of the real file-based progress
@@ -33,7 +35,7 @@ struct FileRowView: View {
 
     var body: some View {
         HStack(spacing: style == .compact ? 10 : 12) {
-            Image(nsImage: icon ?? NSImage(systemSymbolName: "doc", accessibilityDescription: nil)!)
+            Image(nsImage: icon ?? Self.placeholderIcon)
                 .resizable()
                 .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
@@ -121,8 +123,9 @@ struct FileRowView: View {
         case .clean:
             String(localized: "Quarantine removed successfully", comment: "File row status: success")
         case .partialSuccess(let cleaned, let failed):
-            String(localized: "\(cleaned) freed, \(failed) could not be processed",
-                   comment: "File row status: partial success with counts")
+            String(
+                localized: "\(cleaned) freed, \(failed) could not be processed",
+                comment: "File row status: partial success with counts")
         case .cancelled:
             String(localized: "Processing was cancelled", comment: "File row status: cancelled")
         case .error(let error):
@@ -156,8 +159,9 @@ struct FileRowView: View {
             .accessibilityHint("Show error details")
             .popover(isPresented: $showErrorPopover, arrowEdge: .trailing) {
                 errorPopoverContent(
-                    message: String(localized: "\(cleaned) files freed from quarantine.\n\(failed) files could not be processed.",
-                                    comment: "Error popover: partial success details")
+                    message: String(
+                        localized: "\(cleaned) files freed from quarantine.\n\(failed) files could not be processed.",
+                        comment: "Error popover: partial success details")
                 )
             }
 
@@ -179,7 +183,8 @@ struct FileRowView: View {
             .accessibilityHint("Show error details")
             .popover(isPresented: $showErrorPopover, arrowEdge: .trailing) {
                 errorPopoverContent(
-                    message: error.errorDescription ?? String(localized: "An error occurred", comment: "Fallback error message")
+                    message: error.errorDescription
+                        ?? String(localized: "An error occurred", comment: "Fallback error message")
                 )
             }
         }
@@ -204,8 +209,9 @@ struct FileRowView: View {
         case .clean:
             String(localized: "Freed from quarantine", comment: "Compact status: success")
         case .partialSuccess(let cleaned, let failed):
-            String(localized: "\(cleaned) freed, \(failed) failed",
-                   comment: "Compact status: partial success")
+            String(
+                localized: "\(cleaned) freed, \(failed) failed",
+                comment: "Compact status: partial success")
         case .cancelled:
             String(localized: "Cancelled", comment: "Compact status: cancelled")
         case .error(let error):

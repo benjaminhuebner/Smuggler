@@ -5,93 +5,77 @@
 //  Created by Benjamin Hübner on 21.03.26.
 //
 
-import Testing
 import Foundation
+import Testing
+
 @testable import Unquarantine
 
 @Suite("NotificationService — Content Building")
 struct NotificationServiceTests {
+    // Assertions check branch selection and dynamic content (file name / counts),
+    // not exact localized text, so they stay valid regardless of the test locale.
 
-    // MARK: - Success
-
-    @Test("Single successful item shows file name")
-    func singleSuccess() {
-        let items = [FileItem(url: URL(filePath: "/tmp/MyApp.app"), status: .clean)]
-        let (title, body) = NotificationService.buildContent(for: items)
-        let name = "MyApp.app"
-        #expect(title == String(localized: "Quarantine Removed", comment: "Notification title: success"))
-        #expect(body == String(localized: "\(name) is ready to use.", comment: "Notification body: single file success"))
+    private func cleanItem(_ path: String) -> FileItem {
+        FileItem(url: URL(filePath: path), status: .clean)
     }
 
-    @Test("Multiple successful items shows count")
-    func multipleSuccess() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/a.app"), status: .clean),
-            FileItem(url: URL(filePath: "/tmp/b.dmg"), status: .clean),
-            FileItem(url: URL(filePath: "/tmp/c.zip"), status: .clean),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        #expect(title == String(localized: "Quarantine Removed", comment: "Notification title: success"))
-        #expect(body == String(localized: "\(3) items are ready to use.", comment: "Notification body: multiple files success"))
+    private func failedItem(_ path: String) -> FileItem {
+        FileItem(url: URL(filePath: path), status: .error(.permissionDenied(URL(filePath: path))))
     }
 
-    // MARK: - Failure
+    @Test("Success, partial, and failure produce distinct titles")
+    func titlesAreDistinct() {
+        let successTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
+        let failureTitle = NotificationService.buildContent(for: [failedItem("/tmp/a.app")]).title
+        let partialTitle = NotificationService.buildContent(
+            for: [cleanItem("/tmp/a.app"), failedItem("/tmp/b.app")]
+        ).title
 
-    @Test("Single failed item shows file name")
-    func singleFailure() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/MyApp.app"), status: .error(.permissionDenied(URL(filePath: "/tmp/MyApp.app")))),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        let name = "MyApp.app"
-        #expect(title == String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"))
-        #expect(body == String(localized: "Could not remove quarantine from \(name).", comment: "Notification body: single file failure"))
+        #expect(successTitle != failureTitle)
+        #expect(successTitle != partialTitle)
+        #expect(failureTitle != partialTitle)
     }
 
-    @Test("Multiple failed items shows count")
-    func multipleFailure() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/a.app"), status: .error(.permissionDenied(URL(filePath: "/tmp/a.app")))),
-            FileItem(url: URL(filePath: "/tmp/b.dmg"), status: .error(.permissionDenied(URL(filePath: "/tmp/b.dmg")))),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        #expect(title == String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"))
-        #expect(body == String(localized: "Could not remove quarantine from \(2) items.", comment: "Notification body: multiple files failure"))
+    @Test("Single successful item names the file in the body")
+    func singleSuccessNamesFile() {
+        let (_, body) = NotificationService.buildContent(for: [cleanItem("/tmp/MyApp.app")])
+        #expect(body.contains("MyApp.app"))
     }
 
-    // MARK: - Partial
-
-    @Test("Mixed results shows partial title with counts")
-    func partialSuccess() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/a.app"), status: .clean),
-            FileItem(url: URL(filePath: "/tmp/b.app"), status: .clean),
-            FileItem(url: URL(filePath: "/tmp/c.app"), status: .error(.permissionDenied(URL(filePath: "/tmp/c.app")))),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        #expect(title == String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"))
-        #expect(body == String(localized: "\(2) of \(3) items cleaned. Some items had errors.", comment: "Notification body: partial success"))
+    @Test("Multiple successful items show the total count in the body")
+    func multipleSuccessShowsCount() {
+        let items = (0..<3).map { cleanItem("/tmp/\($0).app") }
+        let (_, body) = NotificationService.buildContent(for: items)
+        #expect(body.contains("3"))
     }
 
-    @Test("Partial success item counts as successful")
-    func partialSuccessItem() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/a.app"), status: .partialSuccess(cleaned: 10, failed: 2)),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        #expect(title == String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"))
-        #expect(body == String(localized: "\(1) of \(1) items cleaned. Some items had errors.", comment: "Notification body: partial success"))
+    @Test("Single failure names the file in the body")
+    func singleFailureNamesFile() {
+        let (_, body) = NotificationService.buildContent(for: [failedItem("/tmp/MyApp.app")])
+        #expect(body.contains("MyApp.app"))
     }
 
-    @Test("Mix of clean and partial success items")
-    func cleanAndPartialMix() {
-        let items = [
-            FileItem(url: URL(filePath: "/tmp/a.app"), status: .clean),
-            FileItem(url: URL(filePath: "/tmp/b.app"), status: .partialSuccess(cleaned: 5, failed: 1)),
-        ]
-        let (title, body) = NotificationService.buildContent(for: items)
-        #expect(title == String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"))
-        #expect(body == String(localized: "\(2) of \(2) items cleaned. Some items had errors.", comment: "Notification body: partial success"))
+    @Test("Partial success reports cleaned-of-total counts")
+    func partialReportsCounts() {
+        let items = [cleanItem("/tmp/a.app"), cleanItem("/tmp/b.app"), failedItem("/tmp/c.app")]
+        let (_, body) = NotificationService.buildContent(for: items)
+        #expect(body.contains("2"))
+        #expect(body.contains("3"))
+    }
+
+    @Test("A partialSuccess item counts as success, yielding the partial title overall")
+    func partialSuccessItemCountsAsSuccess() {
+        let items = [FileItem(url: URL(filePath: "/tmp/a.app"), status: .partialSuccess(cleaned: 10, failed: 2))]
+        let partialTitle = NotificationService.buildContent(for: items).title
+        let allCleanTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
+        #expect(partialTitle != allCleanTitle)
+    }
+
+    @Test("Empty item list is safe and returns a non-empty title")
+    func emptyListIsSafe() {
+        let (title, body) = NotificationService.buildContent(for: [])
+        #expect(!title.isEmpty)
+        #expect(body.isEmpty)
     }
 }
 
@@ -99,7 +83,6 @@ struct NotificationServiceTests {
 
 @Suite("FileStatus")
 struct FileStatusTests {
-
     @Test("isSuccessful for each status")
     func isSuccessful() {
         #expect(FileStatus.processing.isSuccessful == false)

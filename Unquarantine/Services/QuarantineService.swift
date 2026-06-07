@@ -38,24 +38,29 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
         switch self {
         case .invalidURL(let url):
             let path = url.absoluteString
-            return String(localized: "Invalid URL: \(path)",
-                          comment: "Error: URL is not a valid file URL")
+            return String(
+                localized: "Invalid URL: \(path)",
+                comment: "Error: URL is not a valid file URL")
         case .fileNotFound(let url):
             let name = url.lastPathComponent
-            return String(localized: "File not found: \(name)",
-                          comment: "Error: file does not exist")
+            return String(
+                localized: "File not found: \(name)",
+                comment: "Error: file does not exist")
         case .permissionDenied(let url):
             let name = url.lastPathComponent
-            return String(localized: "Permission denied: \(name)",
-                          comment: "Error: no permission to access file")
+            return String(
+                localized: "Permission denied: \(name)",
+                comment: "Error: no permission to access file")
         case .timeout(let url):
             let name = url.lastPathComponent
-            return String(localized: "Processing timed out: \(name)",
-                          comment: "Error: operation took too long")
+            return String(
+                localized: "Processing timed out: \(name)",
+                comment: "Error: operation took too long")
         case .systemError(let url, let code):
             let name = url.lastPathComponent
-            return String(localized: "System error \(code) for: \(name)",
-                          comment: "Error: unexpected system error with errno code")
+            return String(
+                localized: "System error \(code) for: \(name)",
+                comment: "Error: unexpected system error with errno code")
         }
     }
 }
@@ -63,7 +68,6 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
 // MARK: - QuarantineService
 
 nonisolated struct QuarantineService: Sendable {
-
     private static let xattrName = "com.apple.quarantine"
 
     /// Returns true if the file at `url` has the com.apple.quarantine extended attribute.
@@ -86,13 +90,13 @@ nonisolated struct QuarantineService: Sendable {
             guard removexattr(path, Self.xattrName, 0) == 0 else {
                 let code = errno
                 switch code {
-                case ENOENT:        throw QuarantineError.fileNotFound(url)
+                case ENOENT: throw QuarantineError.fileNotFound(url)
                 case EACCES, EPERM: throw QuarantineError.permissionDenied(url)
-                case ENOATTR:       return false // Attribute was not present
-                default:            throw QuarantineError.systemError(url, code)
+                case ENOATTR: return false  // Attribute was not present
+                default: throw QuarantineError.systemError(url, code)
                 }
             }
-            return true // Attribute was present and has been removed
+            return true  // Attribute was present and has been removed
         }
     }
 
@@ -111,7 +115,8 @@ nonisolated struct QuarantineService: Sendable {
 
         // Reject symlinks as direct input to prevent traversal attacks.
         if let linkValues = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]),
-           linkValues.isSymbolicLink == true {
+            linkValues.isSymbolicLink == true
+        {
             throw QuarantineError.invalidURL(url)
         }
 
@@ -127,16 +132,22 @@ nonisolated struct QuarantineService: Sendable {
         onProgress?(result.processed)
 
         if isDir {
-            guard let enumerator = FileManager.default.enumerator(
-                at: url,
-                includingPropertiesForKeys: [.isSymbolicLinkKey]
-            ) else {
+            guard
+                let enumerator = FileManager.default.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: [.isSymbolicLinkKey]
+                )
+            else {
                 result.errors.append(QuarantineFileError(url: url, error: .permissionDenied(url)))
                 return result
             }
             while let itemURL = enumerator.nextObject() as? URL {
+                // Abort promptly on timeout or user cancellation so the blocking
+                // enumeration stops and frees its cooperative-pool thread.
+                if Task.isCancelled { break }
                 if let values = try? itemURL.resourceValues(forKeys: [.isSymbolicLinkKey]),
-                   values.isSymbolicLink == true {
+                    values.isSymbolicLink == true
+                {
                     continue
                 }
                 removeQuarantineFromItem(itemURL, into: &result)

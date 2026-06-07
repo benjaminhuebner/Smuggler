@@ -14,10 +14,18 @@ import os
 @MainActor
 final class AppModel {
     /// Minimum visible processing duration so the user perceives the app working.
-    static let minimumProcessingDuration: Duration = .seconds(1.0)
+    let minimumProcessingDuration: Duration
 
     /// Timeout for processing a single item.
-    static let processingTimeout: Duration = .seconds(30)
+    let processingTimeout: Duration
+
+    init(
+        minimumProcessingDuration: Duration = .seconds(1.0),
+        processingTimeout: Duration = .seconds(30)
+    ) {
+        self.minimumProcessingDuration = minimumProcessingDuration
+        self.processingTimeout = processingTimeout
+    }
 
     var items: [FileItem] = []
 
@@ -62,16 +70,19 @@ final class AppModel {
         // Enqueue new URLs, then collect all entries that are still in .processing state
         // (handles both fresh enqueues and URLs already enqueued by handleServiceURLs).
         enqueue(urls: urls)
+        var seenIDs = Set<UUID>()
         let taskEntries: [(id: UUID, url: URL)] = urls.compactMap { url in
             guard let item = items.first(where: { $0.url == url }),
-                  item.status == .processing else { return nil }
+                item.status == .processing,
+                seenIDs.insert(item.id).inserted
+            else { return nil }
             return (item.id, url)
         }
         guard !taskEntries.isEmpty else { return }
 
         let service = self.service
-        let minimumDuration = Self.minimumProcessingDuration
-        let timeout = Self.processingTimeout
+        let minimumDuration = minimumProcessingDuration
+        let timeout = processingTimeout
 
         // Spawn one Task per item so each can be individually cancelled.
         // Capture handles directly so the await loop doesn't miss completed tasks.
@@ -88,8 +99,9 @@ final class AppModel {
                                 guard processed <= 1 || processed % 50 == 0 else { return }
                                 Task { @MainActor in
                                     guard let self,
-                                          let idx = self.items.firstIndex(where: { $0.id == id }),
-                                          self.items[idx].status == .processing else { return }
+                                        let idx = self.items.firstIndex(where: { $0.id == id }),
+                                        self.items[idx].status == .processing
+                                    else { return }
                                     var progress = self.items[idx].progress
                                     progress.processed = processed
                                     if processed > progress.total { progress.total = processed }
@@ -103,8 +115,8 @@ final class AppModel {
                             } else {
                                 return .error(result.errors[0].error)
                             }
-                        } catch let e as QuarantineError {
-                            return .error(e)
+                        } catch let error as QuarantineError {
+                            return .error(error)
                         } catch {
                             return .error(.systemError(url, -1))
                         }
@@ -115,7 +127,9 @@ final class AppModel {
                         return .error(.timeout(url))
                     }
 
-                    let first = await inner.next()!
+                    guard let first = await inner.next() else {
+                        return .error(.systemError(url, -1))
+                    }
                     inner.cancelAll()
                     return first
                 }
@@ -128,7 +142,8 @@ final class AppModel {
                 }
 
                 if let idx = items.firstIndex(where: { $0.id == id }),
-                   items[idx].status == .processing {
+                    items[idx].status == .processing
+                {
                     var item = items[idx]
                     item.status = status
                     item.progress.processed = item.progress.total
@@ -153,7 +168,8 @@ final class AppModel {
         activeTasks[id]?.cancel()
         activeTasks.removeValue(forKey: id)
         if let idx = items.firstIndex(where: { $0.id == id }),
-           items[idx].status == .processing {
+            items[idx].status == .processing
+        {
             items[idx].status = .cancelled
             processingCount -= 1
         }
@@ -217,7 +233,7 @@ final class AppModel {
         }
 
         let coordinator = serviceMode
-        serviceMode?.processingTask = Task { [weak self] in
+        let task = Task { [weak self] in
             guard let self else { return }
             await process(urls: urls)
 
@@ -229,6 +245,7 @@ final class AppModel {
                 }
             }
         }
+        coordinator?.processingTask = task
     }
 
     private func finishServiceMode(_ coordinator: ServiceModeCoordinator) async {
