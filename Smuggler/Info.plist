@@ -7,7 +7,7 @@
 	<key>SUFeedURL</key>
 	<string>https://benjaminhuebner.com/apps/smuggler/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_REAL_EDDSA_PUBLIC_KEY_BEFORE_RELEASE</string>
+	<string>ANcEZL5WMisg7M7wy6Wj6nejyankA9iYVPbzSMl5fzU=</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
