@@ -1,51 +1,112 @@
 {
-  "fill" : {
-    "automatic-gradient" : "display-p3:0.25879,0.16272,0.56592,1.00000"
-  },
+  "fill" : "system-dark",
   "groups" : [
     {
+      "blur-material" : 0.5,
+      "hidden" : false,
       "layers" : [
         {
-          "image-name" : "Pfad 1.svg",
-          "name" : "SmugglerForeground",
+          "glass" : true,
+          "image-name" : "Pfad Kopie.svg",
+          "name" : "Pfad Kopie",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -97.39494825155509,
-              0.2152007326938019
+              3,
+              -0.02627563743999417
+            ]
+          }
+        },
+        {
+          "glass" : true,
+          "image-name" : "Pfad Kopie 2.svg",
+          "name" : "Pfad Kopie 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0.12349530722167401,
+              26.527156585331
             ]
           }
         }
       ],
+      "position" : {
+        "scale" : 0.925,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
       "shadow" : {
-        "kind" : "neutral",
+        "kind" : "layer-color",
         "opacity" : 0.5
       },
+      "specular" : false,
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
       }
     },
     {
+      "blur-material" : null,
       "layers" : [
         {
-          "image-name" : "Pfad.svg",
-          "name" : "SmugglerBackground",
+          "image-name" : "Gruppe Kopie.svg",
+          "name" : "Gruppe Kopie",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              71.60505174844491,
-              109.21520073269369
+              0,
+              0
             ]
           }
         }
       ],
+      "position" : {
+        "scale" : 0.94,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
       "translucency" : {
         "enabled" : true,
+        "value" : 0.6
+      }
+    },
+    {
+      "hidden" : false,
+      "layers" : [
+        {
+          "image-name" : "Pfad Kopie 3.svg",
+          "name" : "Pfad Kopie 3",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0.23488695713768948,
+              -91.06564674031392
+            ]
+          }
+        }
+      ],
+      "position" : {
+        "scale" : 0.925,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
         "value" : 0.5
       }
     }

@@ -25,7 +25,7 @@ struct DropZoneView: View {
     private var compactView: some View {
         HStack(spacing: 10) {
             Image(systemName: isTargeted ? "arrow.down.circle.fill" : "arrow.down.circle")
-                .foregroundStyle(isTargeted ? Color("SmugglerYellow") : Color.secondary.opacity(0.6))
+                .foregroundStyle(isTargeted ? Color.smugglerYellow : Color.secondary.opacity(0.6))
                 .font(.title3)
                 .contentTransition(.symbolEffect(.replace))
 
@@ -73,7 +73,7 @@ struct DropZoneView: View {
                 .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(
                     isTargeted
-                        ? AnyShapeStyle(Color("SmugglerYellow"))
+                        ? AnyShapeStyle(Color.smugglerYellow)
                         : AnyShapeStyle(.secondary)
                 )
                 .contentTransition(.symbolEffect(.replace.magic(fallback: .downUp.byLayer)))
@@ -109,7 +109,7 @@ struct DropZoneView: View {
                         .foregroundStyle(.black)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color("SmugglerYellow"))
+                .tint(Color.smugglerYellow)
                 .controlSize(.large)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
@@ -139,10 +139,10 @@ struct DropZoneView: View {
 
             // Solid border + fill — targeted state
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color("SmugglerYellow").opacity(0.05))
+                .fill(Color.smugglerYellow.opacity(0.05))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color("SmugglerYellow").opacity(0.4), lineWidth: 1.5)
+                        .strokeBorder(Color.smugglerYellow.opacity(0.4), lineWidth: 1.5)
                 )
                 .opacity(isTargeted ? 1 : 0)
         }

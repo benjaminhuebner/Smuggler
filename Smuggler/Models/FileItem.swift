@@ -33,14 +33,12 @@ nonisolated struct FileItem: Identifiable, Equatable, Sendable {
     let id: UUID
     let url: URL
     var status: FileStatus
-    let timestamp: Date
 
     var name: String { url.lastPathComponent }
 
-    init(url: URL, status: FileStatus, timestamp: Date = .now) {
+    init(url: URL, status: FileStatus) {
         self.id = UUID()
         self.url = url
         self.status = status
-        self.timestamp = timestamp
     }
 }
