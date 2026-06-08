@@ -1,15 +1,11 @@
-<table border="0" cellspacing="0" cellpadding="0">
-<tr>
-<td valign="middle"><img src="Docs/icon.png" width="92" hspace="18" alt="Smuggler app icon"></td>
-<td valign="middle">
+<img src="Docs/icon.png" width="92" align="left" hspace="18" vspace="2" alt="Smuggler app icon">
 
-### Smuggler
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Docs/title-dark.png">
+  <img src="Docs/title-light.png" alt="Smuggler" height="48">
+</picture>
 
 **Free your downloaded files from macOS quarantine — without ever touching the Terminal.**
-
-</td>
-</tr>
-</table>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE) [![Platform: macOS 26+](https://img.shields.io/badge/platform-macOS%2026%2B-blue?style=flat-square)](#requirements) [![Swift 6](https://img.shields.io/badge/Swift-6-orange?style=flat-square)](#requirements)
 
