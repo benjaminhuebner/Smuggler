@@ -1,14 +1,23 @@
-<img src="Docs/icon.png" width="92" align="left" hspace="18" vspace="2" alt="Smuggler app icon">
+<table border="0" cellspacing="0" cellpadding="0">
+<tr>
+<td valign="middle"><img src="Docs/icon.png" width="92" hspace="18" alt="Smuggler app icon"></td>
+<td valign="middle">
 
-# Smuggler
+### Smuggler
 
 **Free your downloaded files from macOS quarantine — without ever touching the Terminal.**
+
+</td>
+</tr>
+</table>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE) [![Platform: macOS 26+](https://img.shields.io/badge/platform-macOS%2026%2B-blue?style=flat-square)](#requirements) [![Swift 6](https://img.shields.io/badge/Swift-6-orange?style=flat-square)](#requirements)
 
 *Drag a file in, right-click it in Finder, or pick it from a dialog — Smuggler removes the "downloaded from the internet" flag so your file just opens. No `xattr`, no jargon, no scary warnings.*
 
-<a href="Docs/demo.gif"><img src="Docs/demo.gif" width="100%" alt="Smuggler: a file is dropped into the window, processed, and reported as freed"></a>
+<p align="center">
+  <a href="Docs/demo.gif"><img src="Docs/demo.gif" width="640" alt="Smuggler: a file is dropped into the window, processed, and reported as freed"></a>
+</p>
 
 ---
 
