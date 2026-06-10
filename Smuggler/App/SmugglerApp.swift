@@ -1,10 +1,3 @@
-//
-//  SmugglerApp.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import SwiftUI
 
 // MARK: - Focused Values for File Menu
@@ -31,17 +24,12 @@ struct SmugglerApp: App {
         Window("Smuggler", id: "main") {
             ContentView(appModel: appDelegate.appModel)
                 .onOpenURL { url in
+                    let isColdLaunch = appDelegate.consumeColdLaunch()
                     guard let request = AppModel.parseIncomingURL(url) else { return }
-                    let validURLs = request.urls.filter {
-                        FileManager.default.fileExists(atPath: $0.path(percentEncoded: false))
+                    if !isColdLaunch {
+                        NSApp.activate(ignoringOtherApps: true)
                     }
-                    guard !validURLs.isEmpty else { return }
-                    let useServiceMode = request.quitAfter && !appDelegate.isReady
-                    appDelegate.appModel.handleServiceURLs(
-                        validURLs,
-                        action: request.action,
-                        quitAfter: useServiceMode
-                    )
+                    appDelegate.appModel.handleIncomingRequest(request, isColdLaunch: isColdLaunch)
                 }
         }
         .defaultSize(width: 520, height: 380)
@@ -60,7 +48,7 @@ struct SmugglerApp: App {
                 Button("Open Folder…") {
                     openFolder?()
                 }
-                .keyboardShortcut("O", modifiers: [.shift, .command])
+                .keyboardShortcut("o", modifiers: [.shift, .command])
             }
         }
     }

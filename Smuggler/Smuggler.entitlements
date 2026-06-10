@@ -6,5 +6,11 @@
 	     Distributed via Developer ID only (not Mac App Store). -->
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
+	<!-- Shared with the Finder extension for one-time service tokens that
+	     authenticate smuggler:// requests as coming from the extension. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(TeamIdentifierPrefix)group.com.benjaminhuebner.Smuggler</string>
+	</array>
 </dict>
 </plist>

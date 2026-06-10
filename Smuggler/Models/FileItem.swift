@@ -1,22 +1,21 @@
-//
-//  FileItem.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import Foundation
+
+nonisolated enum ServiceAction: String, Sendable {
+    case open
+    case remove
+}
 
 nonisolated enum FileStatus: Equatable, Sendable {
     case processing
     case clean
-    case partialSuccess(cleaned: Int, failed: Int)
+    case alreadyClean
+    case partialSuccess(cleaned: Int, errors: [QuarantineFileError])
     case cancelled
     case error(QuarantineError)
 
     var isSuccessful: Bool {
         switch self {
-        case .clean, .partialSuccess: true
+        case .clean, .alreadyClean, .partialSuccess: true
         default: false
         }
     }

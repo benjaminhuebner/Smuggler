@@ -1,21 +1,14 @@
-//
-//  NotificationService.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import UserNotifications
 import os
 
-private let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler", category: "Notifications")
+nonisolated private let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler", category: "Notifications")
 
-/// Sends local notifications when quarantine removal completes in headless mode
-/// (Services or Finder Extension). Not used for in-app drag & drop or file menu.
+// Headless mode (Services / Finder Extension) only — in-app flows show
+// results in the window instead of notifying.
 enum NotificationService {
     // MARK: - Authorization
 
-    static func requestAuthorization() async {
+    nonisolated static func requestAuthorization() async {
         do {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound])
@@ -32,7 +25,7 @@ enum NotificationService {
 
     // MARK: - Posting
 
-    static func postResult(items: [FileItem]) async {
+    nonisolated static func postResult(items: [FileItem]) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
 
@@ -66,7 +59,7 @@ enum NotificationService {
 
     // MARK: - Content Building (pure, testable)
 
-    static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
+    nonisolated static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
         guard let firstName = items.first?.name else {
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), "")
         }
@@ -74,9 +67,9 @@ enum NotificationService {
         let hasErrors = items.contains(where: \.status.hasErrors)
         let total = items.count
 
-        // Nothing was cleaned. Distinguish genuine failures from a batch the
-        // user cancelled (no successes, but also no errors) so success copy is
-        // never shown when no quarantine was actually removed.
+        // Distinguish genuine failures from a batch the user cancelled (no
+        // successes, but also no errors) so success copy is never shown when
+        // no quarantine was actually removed.
         if successCount == 0 {
             if !hasErrors {
                 return (

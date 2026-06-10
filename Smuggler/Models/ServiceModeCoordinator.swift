@@ -1,25 +1,18 @@
-//
-//  ServiceModeCoordinator.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 24.03.26.
-//
-
 import Foundation
 
-/// Encapsulates service-mode state (Finder Extension / Services Menu).
-/// Owns the lifecycle tasks for processing and termination so they can
-/// be cancelled independently of AppModel's item management.
+// Separate from AppModel so a superseded batch's lifecycle tasks can be
+// cancelled without touching item management.
 @MainActor
 final class ServiceModeCoordinator {
     let entryIDs: Set<UUID>
-    let action: String
+    let action: ServiceAction
     let quitAfter: Bool
 
     var processingTask: Task<Void, Never>?
     var terminationTask: Task<Void, Never>?
+    var authorizationTask: Task<Void, Never>?
 
-    init(entryIDs: Set<UUID>, action: String, quitAfter: Bool) {
+    init(entryIDs: Set<UUID>, action: ServiceAction, quitAfter: Bool) {
         self.entryIDs = entryIDs
         self.action = action
         self.quitAfter = quitAfter
@@ -30,5 +23,7 @@ final class ServiceModeCoordinator {
         processingTask = nil
         terminationTask?.cancel()
         terminationTask = nil
+        authorizationTask?.cancel()
+        authorizationTask = nil
     }
 }

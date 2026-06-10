@@ -1,10 +1,3 @@
-//
-//  QuarantineServiceTests.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import Foundation
 import Testing
 

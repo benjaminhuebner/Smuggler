@@ -1,17 +1,9 @@
-//
-//  UpdaterController.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 07.06.26.
-//
-
 import Foundation
 import Observation
 import Sparkle
 
-// The single home for the Sparkle SDK in this codebase (one-home-per-vendor-SDK
-// invariant). Wraps the standard updater controller and mirrors its
-// `canCheckForUpdates` flag into observable state.
+// The single home for the Sparkle SDK in this codebase — keep all Sparkle
+// imports and types behind this wall.
 @MainActor
 @Observable
 final class UpdaterController {
@@ -29,10 +21,9 @@ final class UpdaterController {
 
         let updater = controller.updater
         canCheckForUpdates = updater.canCheckForUpdates
-        // Mirror Sparkle's KVO flag into observable storage so the menu item's
-        // enabled state tracks an in-progress check. Hop to the main actor via
-        // the Sendable Bool from the change dict rather than asserting isolation,
-        // so this is safe even if Sparkle ever fires the KVO off the main thread.
+        // Mirror Sparkle's KVO flag into observable storage so the menu item
+        // tracks an in-progress check. Hop to the main actor via the Sendable
+        // Bool from the change dict — safe even if Sparkle fires off-main.
         observation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
             guard let newValue = change.newValue else { return }
             Task { @MainActor in

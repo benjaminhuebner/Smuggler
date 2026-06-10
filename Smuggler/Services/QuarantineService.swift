@@ -1,10 +1,3 @@
-//
-//  QuarantineService.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import Foundation
 
 // MARK: - QuarantineResult
@@ -33,6 +26,7 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
     case permissionDenied(URL)
     case timeout(URL)
     case systemError(URL, Int32)
+    case blockedPath(URL)
 
     var errorDescription: String? {
         switch self {
@@ -61,6 +55,11 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
             return String(
                 localized: "System error \(code) for: \(name)",
                 comment: "Error: unexpected system error with errno code")
+        case .blockedPath(let url):
+            let name = url.lastPathComponent
+            return String(
+                localized: "System location cannot be modified: \(name)",
+                comment: "Error: path is in a protected system location")
         }
     }
 }
@@ -70,7 +69,24 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
 nonisolated struct QuarantineService: Sendable {
     private static let xattrName = "com.apple.quarantine"
 
-    /// Returns true if the file at `url` has the com.apple.quarantine extended attribute.
+    // Quarantine removal on these trees would weaken system integrity far beyond
+    // "free a downloaded file", so they are refused regardless of origin — enforced
+    // in AppModel.enqueue (every entry point) and here as defense in depth.
+    static let blockedPathPrefixes = [
+        "/System/", "/Library/LaunchDaemons/", "/Library/LaunchAgents/",
+        "/Library/Extensions/", "/usr/", "/bin/", "/sbin/",
+    ]
+
+    private static let lowercasedBlockedPrefixes = blockedPathPrefixes.map { $0.lowercased() }
+
+    static func isBlockedPath(_ url: URL) -> Bool {
+        // Resolve symlinks so an alias cannot smuggle a blocked tree past the
+        // check, and compare case-insensitively — the default APFS volume
+        // resolves /library/... to the same item as /Library/...
+        let path = url.resolvingSymlinksInPath().path(percentEncoded: false).lowercased() + "/"
+        return lowercasedBlockedPrefixes.contains { path.hasPrefix($0) }
+    }
+
     func hasQuarantine(_ url: URL) -> Bool {
         url.withUnsafeFileSystemRepresentation { path in
             guard let path else { return false }
@@ -78,9 +94,6 @@ nonisolated struct QuarantineService: Sendable {
         }
     }
 
-    /// Removes the com.apple.quarantine attribute from the file at `url`.
-    /// Returns `true` if the attribute was present and removed, `false` if it was already absent.
-    /// Throws if the file does not exist, permission is denied, or another system error occurs.
     @discardableResult
     func removeQuarantine(_ url: URL) throws -> Bool {
         try url.withUnsafeFileSystemRepresentation { path in
@@ -96,17 +109,19 @@ nonisolated struct QuarantineService: Sendable {
                 default: throw QuarantineError.systemError(url, code)
                 }
             }
-            return true  // Attribute was present and has been removed
+            return true
         }
     }
 
-    /// Removes the quarantine attribute from `url` and, if `url` is a directory,
-    /// from every file inside it recursively.
-    /// Throws immediately if `url` does not exist.
-    /// Per-file errors are collected in the returned `QuarantineResult` rather than thrown.
+    // Throws only if `url` itself is invalid or missing; per-file errors inside a
+    // directory are collected in the returned `QuarantineResult` rather than thrown.
     func removeQuarantineRecursively(_ url: URL) throws -> QuarantineResult {
         guard url.isFileURL else {
             throw QuarantineError.invalidURL(url)
+        }
+
+        guard !Self.isBlockedPath(url) else {
+            throw QuarantineError.blockedPath(url)
         }
 
         // Reject symlinks as direct input to prevent traversal attacks.

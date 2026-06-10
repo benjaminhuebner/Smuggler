@@ -1,13 +1,8 @@
-//
-//  DropZoneView.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import SwiftUI
 
 struct DropZoneView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isTargeted: Bool
     let compact: Bool
     let onChooseFiles: () -> Void
@@ -60,15 +55,22 @@ struct DropZoneView: View {
         .padding(.vertical, 10)
         .background(.bar)
         .animation(.easeInOut(duration: 0.15), value: isTargeted)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(isTargeted ? "Release to free from quarantine" : "Drop zone. Drop more files here.")
+        // .contain (not .combine) so the "Choose Files…" button stays reachable.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            isTargeted
+                ? String(
+                    localized: "Release to free from quarantine",
+                    comment: "Drop zone status while a drag hovers over it")
+                : String(
+                    localized: "Drop zone. Drop more files here.",
+                    comment: "Accessibility label: compact drop zone"))
     }
 
     // MARK: - Full (empty state)
 
     private var fullView: some View {
         VStack(spacing: 28) {
-            // Icon area
             Image(systemName: isTargeted ? "lock.open.fill" : "arrow.down.doc")
                 .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(
@@ -77,11 +79,10 @@ struct DropZoneView: View {
                         : AnyShapeStyle(.secondary)
                 )
                 .contentTransition(.symbolEffect(.replace.magic(fallback: .downUp.byLayer)))
-                .symbolEffect(.bounce, value: isTargeted)
+                .symbolEffect(.bounce, value: reduceMotion ? false : isTargeted)
                 .frame(height: 64)
-                .animation(.spring(duration: 0.4, bounce: 0.3), value: isTargeted)
+                .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.3), value: isTargeted)
 
-            // Text area
             VStack(spacing: 8) {
                 Text(isTargeted ? "Release to free from quarantine" : "Drop files to remove quarantine")
                     .font(.title3.weight(.semibold))
@@ -99,14 +100,13 @@ struct DropZoneView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: isTargeted)
 
-            // Button
             if !isTargeted {
                 Button {
                     onChooseFiles()
                 } label: {
                     Label("Choose Files…", systemImage: "folder")
                         .font(.body.weight(.medium))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.smugglerOnYellow)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.smugglerYellow)
@@ -122,14 +122,19 @@ struct DropZoneView: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            isTargeted ? "Release to remove quarantine" : "Drop zone. Drag files or folders to remove quarantine.")
+            isTargeted
+                ? String(
+                    localized: "Release to remove quarantine",
+                    comment: "Accessibility label: full drop zone while a drag hovers over it")
+                : String(
+                    localized: "Drop zone. Drag files or folders to remove quarantine.",
+                    comment: "Accessibility label: full drop zone"))
     }
 
     // MARK: - Background
 
     private var dropZoneBackground: some View {
         ZStack {
-            // Dashed border — normal state
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(
                     Color.secondary.opacity(0.2),
@@ -137,7 +142,6 @@ struct DropZoneView: View {
                 )
                 .opacity(isTargeted ? 0 : 1)
 
-            // Solid border + fill — targeted state
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.smugglerYellow.opacity(0.05))
                 .overlay(

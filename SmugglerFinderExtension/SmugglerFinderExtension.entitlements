@@ -11,5 +11,11 @@
 	<array>
 		<string>/</string>
 	</array>
+	<!-- Shared with the main app for one-time service tokens that authenticate
+	     smuggler:// requests as coming from this extension. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(TeamIdentifierPrefix)group.com.benjaminhuebner.Smuggler</string>
+	</array>
 </dict>
 </plist>

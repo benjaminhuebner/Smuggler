@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import AppKit
 import SwiftUI
 
@@ -86,22 +79,43 @@ struct ContentView: View {
             Spacer()
 
             if !appModel.items.isEmpty {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        appModel.clear()
+                if appModel.isProcessing {
+                    Button {
+                        appModel.cancelAll()
+                    } label: {
+                        ViewThatFits(in: .horizontal) {
+                            Label("Cancel All", systemImage: "xmark.circle")
+                                .font(.caption)
+                            Image(systemName: "xmark.circle")
+                                .font(.caption)
+                                .accessibilityLabel(
+                                    String(localized: "Cancel All", comment: "Button: cancel all in-flight items"))
+                        }
                     }
-                } label: {
-                    ViewThatFits(in: .horizontal) {
-                        Label("Clear All", systemImage: "trash")
-                            .font(.caption)
-                        Image(systemName: "trash")
-                            .font(.caption)
-                            .accessibilityLabel("Clear all")
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Cancel all in-flight items")
+                } else {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            appModel.clear()
+                        }
+                    } label: {
+                        ViewThatFits(in: .horizontal) {
+                            Label("Clear All", systemImage: "trash")
+                                .font(.caption)
+                            Image(systemName: "trash")
+                                .font(.caption)
+                                .accessibilityLabel(
+                                    String(
+                                        localized: "Clear All",
+                                        comment: "Button: remove all items from the list"))
+                        }
                     }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Remove all items from the list")
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .help("Remove all items from the list")
             }
         }
         .padding(.horizontal, 20)
@@ -121,16 +135,34 @@ struct ContentView: View {
             }
         } else if appModel.allCancelled {
             Text("All items cancelled")
+        } else if appModel.cleanedCount == 0, appModel.failedCount > 0 {
+            // Colored icon + primary text instead of colored text, which would
+            // fall short of WCAG AA contrast on the bar background.
+            Label {
+                Text("No items could be freed").foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.red)
+            }
         } else if appModel.cleanedCount == 0 {
             Text("No items could be freed")
+        } else if appModel.failedCount > 0 {
+            Label {
+                Text("\(appModel.cleanedCount) freed, \(appModel.failedCount) failed")
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
         } else {
-            Label(
-                appModel.cleanedCount == 1
-                    ? "1 item freed"
-                    : "\(appModel.cleanedCount) items freed",
-                systemImage: "checkmark.circle.fill"
-            )
-            .foregroundStyle(.green)
+            Label {
+                Text(
+                    appModel.cleanedCount == 1
+                        ? "1 item freed"
+                        : "\(appModel.cleanedCount) items freed"
+                )
+                .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }
         }
     }
 
@@ -201,7 +233,7 @@ struct ContentView: View {
                 URL(fileURLWithPath: "/Applications/Safari.app"),
                 URL(fileURLWithPath: "/tmp/test.zip"),
             ]
-            model.handleServiceURLs(urls, action: "remove", quitAfter: true)
+            model.handleServiceURLs(urls, action: .remove, quitAfter: true)
         }
         .frame(width: 380)
 }

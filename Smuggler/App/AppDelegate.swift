@@ -1,10 +1,3 @@
-//
-//  AppDelegate.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import AppKit
 import os
 
@@ -12,26 +5,53 @@ private let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler", category:
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Shared model so both the window and the services/URL handler use the same state.
     let appModel = AppModel()
 
-    // Owns the Sparkle updater for the app's lifetime. Starts itself; scheduled
-    // background checks run per the user's first-run opt-in. In service mode the
-    // session quits within ~1s and the menu command is unreachable, so no update
-    // UI surfaces there.
-    let updater = UpdaterController()
+    // No update UI in service mode: the session quits within ~1s and the
+    // menu command is unreachable there. Lazy so tests can instantiate
+    // the delegate without starting Sparkle.
+    lazy var updater = UpdaterController()
 
-    /// Becomes `true` once the initial launch sequence is complete.
-    /// Any URL received before this is a cold-launch URL (from extension).
+    // False while the app is still handling the request that launched it —
+    // such a request must use cold-launch service mode. Consumers flip it to
+    // true when the first request arrives (see consumeColdLaunch()).
     var isReady = false
+
+    // Non-default launches include reasons that never deliver a request (own
+    // result notifications, state restoration); an unconsumed cold launch must
+    // expire or a much later request would misclassify and self-terminate.
+    var coldLaunchGracePeriod: Duration = .seconds(5)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = self
         NSUpdateDynamicServices()
+        _ = updater
 
-        // Set isReady on the next run loop tick — after any cold-launch
-        // onOpenURL has already fired.
-        Task { [weak self] in self?.isReady = true }
+        completeLaunch(
+            isDefaultLaunch: (notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool) ?? true)
+    }
+
+    // AppKit sets launchIsDefault to false when the app was launched to
+    // handle a URL or Services request. Never write false here: the
+    // launching request may already have been consumed before this runs.
+    func completeLaunch(isDefaultLaunch: Bool) {
+        if isDefaultLaunch {
+            isReady = true
+        } else {
+            Task { [weak self] in
+                guard let self else { return }
+                try? await Task.sleep(for: coldLaunchGracePeriod)
+                isReady = true
+            }
+        }
+    }
+
+    // Marks the launch sequence complete even when it returns false — every
+    // request after the first must see an already-running app.
+    func consumeColdLaunch() -> Bool {
+        let wasCold = !isReady
+        isReady = true
+        return wasCold
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -53,8 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         logger.info("Services handler: processing \(urls.count) item(s)")
 
-        // Only use service mode (compact UI + auto-quit) on cold launch.
-        // If the app is already open, just add items to the normal list.
-        appModel.handleServiceURLs(urls, action: "remove", quitAfter: !isReady)
+        let coldLaunch = consumeColdLaunch()
+        if !coldLaunch {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        appModel.handleServiceURLs(urls, action: .remove, quitAfter: coldLaunch)
     }
 }

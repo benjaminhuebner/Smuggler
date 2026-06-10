@@ -1,10 +1,3 @@
-//
-//  FinderSync.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import AppKit
 import FinderSync
 import os
@@ -14,19 +7,30 @@ private let logger = Logger(
     category: "FinderSync"
 )
 
+// Deliberately NOT @MainActor: FIFinderSync callbacks arrive on arbitrary
+// queues, and MainActor isolation trips the "Block was expected to execute on
+// queue main-thread" assertion in Finder — the extension then shows no menu.
 final class FinderSync: FIFinderSync {
     override init() {
         super.init()
+        // FinderSync only invokes the extension for items inside its registered
+        // directories, and quarantined files can live anywhere the user browses —
+        // no scope narrower than the whole volume covers arbitrary locations.
         FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
+        logger.info("FinderSync initialized, observing /")
     }
 
     // MARK: - Context menu
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
         let urls = FIFinderSyncController.default().selectedItemURLs() ?? []
+        // contains(where:) short-circuits — menu construction runs synchronously
+        // inside Finder, so don't getxattr the whole selection just for a count.
+        let hasQuarantinedItem = urls.contains(where: { Self.hasQuarantine($0) })
+        logger.debug(
+            "menu(for:) kind=\(menuKind.rawValue) selection=\(urls.count) quarantined=\(hasQuarantinedItem)")
 
-        // Only show menu items when at least one selected file is quarantined
-        guard urls.contains(where: { Self.hasQuarantine($0) }) else {
+        guard hasQuarantinedItem else {
             return NSMenu(title: "")
         }
 
@@ -76,6 +80,11 @@ final class FinderSync: FIFinderSync {
         var queryItems = urls.map { URLQueryItem(name: "path", value: $0.path(percentEncoded: false)) }
         queryItems.append(URLQueryItem(name: "action", value: action))
         queryItems.append(URLQueryItem(name: "quitAfter", value: "true"))
+        if let token = ServiceTokenStore().issueToken() {
+            queryItems.append(URLQueryItem(name: "token", value: token))
+        } else {
+            logger.warning("Could not issue service token — app will show a confirmation dialog")
+        }
         components.queryItems = queryItems
 
         guard let url = components.url else {
@@ -85,14 +94,14 @@ final class FinderSync: FIFinderSync {
 
         logger.info("Opening smuggler URL for \(urls.count) item(s), action: \(action)")
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             NSWorkspace.shared.open(url)
         }
     }
 
-    /// Duplicates `QuarantineService.hasQuarantine` — the extension target cannot
-    /// import from the main app without a shared framework, which is not worth the
-    /// complexity for this single 4-line function.
+    // Duplicates `QuarantineService.hasQuarantine` deliberately: sharing the file
+    // via target membership would drag unused recursion code and localized error
+    // strings into the extension for a single 4-line function.
     private static func hasQuarantine(_ url: URL) -> Bool {
         url.withUnsafeFileSystemRepresentation { path in
             guard let path else { return false }

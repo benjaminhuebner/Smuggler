@@ -1,10 +1,3 @@
-//
-//  NotificationServiceTests.swift
-//  Smuggler
-//
-//  Created by Benjamin Hübner on 21.03.26.
-//
-
 import Foundation
 import Testing
 
@@ -25,6 +18,10 @@ struct NotificationServiceTests {
 
     private func cancelledItem(_ path: String) -> FileItem {
         FileItem(url: URL(filePath: path), status: .cancelled)
+    }
+
+    private func fileError(_ path: String) -> QuarantineFileError {
+        QuarantineFileError(url: URL(filePath: path), error: .permissionDenied(URL(filePath: path)))
     }
 
     @Test("Success, partial, and failure produce distinct titles")
@@ -69,7 +66,11 @@ struct NotificationServiceTests {
 
     @Test("A partialSuccess item counts as success, yielding the partial title overall")
     func partialSuccessItemCountsAsSuccess() {
-        let items = [FileItem(url: URL(filePath: "/tmp/a.app"), status: .partialSuccess(cleaned: 10, failed: 2))]
+        let items = [
+            FileItem(
+                url: URL(filePath: "/tmp/a.app"),
+                status: .partialSuccess(cleaned: 10, errors: [fileError("/tmp/a.app/x")]))
+        ]
         let partialTitle = NotificationService.buildContent(for: items).title
         let allCleanTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
         #expect(partialTitle != allCleanTitle)
@@ -99,11 +100,17 @@ struct NotificationServiceTests {
 
 @Suite("FileStatus")
 struct FileStatusTests {
+    private static let partial = FileStatus.partialSuccess(
+        cleaned: 3,
+        errors: [
+            QuarantineFileError(url: URL(filePath: "/tmp/x"), error: .permissionDenied(URL(filePath: "/tmp/x")))
+        ])
+
     @Test("isSuccessful for each status")
     func isSuccessful() {
         #expect(FileStatus.processing.isSuccessful == false)
         #expect(FileStatus.clean.isSuccessful == true)
-        #expect(FileStatus.partialSuccess(cleaned: 3, failed: 1).isSuccessful == true)
+        #expect(Self.partial.isSuccessful == true)
         #expect(FileStatus.error(.fileNotFound(URL(filePath: "/tmp/x"))).isSuccessful == false)
     }
 
@@ -111,7 +118,7 @@ struct FileStatusTests {
     func hasErrors() {
         #expect(FileStatus.processing.hasErrors == false)
         #expect(FileStatus.clean.hasErrors == false)
-        #expect(FileStatus.partialSuccess(cleaned: 3, failed: 1).hasErrors == true)
+        #expect(Self.partial.hasErrors == true)
         #expect(FileStatus.error(.fileNotFound(URL(filePath: "/tmp/x"))).hasErrors == true)
     }
 }
