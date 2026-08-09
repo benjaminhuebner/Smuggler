@@ -4,17 +4,27 @@ import SwiftUI
 struct ContentView: View {
     let appModel: AppModel
     @State private var isDropTargeted = false
+    @State private var finishingFillRowCount = 0
 
     private var isServiceMode: Bool { appModel.serviceMode != nil }
 
+    // Real completion leads the bars' finishing fill; a status bar keyed on it
+    // alone would announce success while a row is still sprinting to full.
+    private var showsAsProcessing: Bool {
+        appModel.isProcessing || finishingFillRowCount > 0
+    }
+
     var body: some View {
-        if isServiceMode {
-            serviceView
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(minWidth: 320)
-        } else {
-            normalView
+        Group {
+            if isServiceMode {
+                serviceView
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minWidth: 320)
+            } else {
+                normalView
+            }
         }
+        .onPreferenceChange(FinishingFillCountKey.self) { finishingFillRowCount = $0 }
     }
 
     // MARK: - Normal Mode
@@ -79,22 +89,10 @@ struct ContentView: View {
             Spacer()
 
             if !appModel.items.isEmpty {
+                // Keyed on real work, not on the lagging fill: offering Cancel All
+                // once every task is gone would be a button that cancels nothing.
                 if appModel.isProcessing {
-                    Button {
-                        appModel.cancelAll()
-                    } label: {
-                        ViewThatFits(in: .horizontal) {
-                            Label("Cancel All", systemImage: "xmark.circle")
-                                .font(.caption)
-                            Image(systemName: "xmark.circle")
-                                .font(.caption)
-                                .accessibilityLabel(
-                                    String(localized: "Cancel All", comment: "Button: cancel all in-flight items"))
-                        }
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .help("Cancel all in-flight items")
+                    cancelAllButton
                 } else {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -123,9 +121,27 @@ struct ContentView: View {
         .background(.bar)
     }
 
+    private var cancelAllButton: some View {
+        Button {
+            appModel.cancelAll()
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                Label("Cancel All", systemImage: "xmark.circle")
+                    .font(.caption)
+                Image(systemName: "xmark.circle")
+                    .font(.caption)
+                    .accessibilityLabel(
+                        String(localized: "Cancel All", comment: "Button: cancel all in-flight items"))
+            }
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help("Cancel all in-flight items")
+    }
+
     @ViewBuilder
     private var statusText: some View {
-        if appModel.isProcessing {
+        if showsAsProcessing {
             HStack(spacing: 6) {
                 ProgressView()
                     .controlSize(.small)
@@ -168,16 +184,53 @@ struct ContentView: View {
 
     // MARK: - Service Mode (Finder Extension / Services Menu)
 
+    // The service window is content-sized and unscrollable, and a Finder
+    // selection is unbounded — without a cap it can outgrow the screen.
+    private static let serviceRowLimit = 8
+
     private var serviceView: some View {
-        let lastItemID = appModel.items.last?.id
+        let (shownItems, hiddenCount) = appModel.items.cappedPrefix(Self.serviceRowLimit)
+        let lastItemID = shownItems.last?.id
         return VStack(spacing: 0) {
-            ForEach(appModel.items) { item in
+            ForEach(shownItems) { item in
                 FileRowView(item: item, style: .compact) {
                     appModel.cancel(id: item.id)
                 }
                 if item.id != lastItemID {
                     Divider().padding(.leading, 44)
                 }
+            }
+            if hiddenCount > 0 {
+                Divider().padding(.leading, 44)
+                Text(
+                    hiddenCount == 1
+                        ? String(
+                            localized: "and 1 more item",
+                            comment: "Service window: summary row when one item is hidden by the row cap")
+                        : String(
+                            localized: "and \(hiddenCount) more items",
+                            comment: "Service window: summary row when several items are hidden by the row cap")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 44)
+                .padding(.trailing, 12)
+                .padding(.vertical, 8)
+            }
+            if showsAsProcessing {
+                // Rows past the cap have no visible cancel control; the
+                // batch-level cancel keeps a wedged hidden item cancellable.
+                // Held through the finishing fill so this content-sized window
+                // doesn't shrink out from under rows that still read as working.
+                Divider().padding(.leading, 44)
+                HStack {
+                    Spacer()
+                    cancelAllButton
+                        .disabled(!appModel.isProcessing)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
             }
         }
         .padding(.vertical, 4)
@@ -226,12 +279,20 @@ struct ContentView: View {
 }
 
 #Preview("Service Mode") {
-    let model = AppModel()
+    // Stub handlers and nonexistent paths: the default handlers would walk real
+    // bundles, post notifications, and terminate the preview host.
+    let model = AppModel(
+        confirm: { _, _ in true },
+        open: { _ in },
+        terminate: {},
+        authorize: {},
+        notify: { _ in }
+    )
     ContentView(appModel: model)
         .onAppear {
             let urls = [
-                URL(fileURLWithPath: "/Applications/Safari.app"),
-                URL(fileURLWithPath: "/tmp/test.zip"),
+                URL(filePath: "/tmp/smuggler-preview/Sample.app"),
+                URL(filePath: "/tmp/smuggler-preview/download.zip"),
             ]
             model.handleServiceURLs(urls, action: .remove, quitAfter: true)
         }

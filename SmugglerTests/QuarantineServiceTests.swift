@@ -33,6 +33,26 @@ struct QuarantineServiceTests {
         return dir
     }
 
+    @Test("An undescendable subfolder is reported as a skipped location, not a failed file")
+    func unreadableSubfolderIsReportedAsSkipped() throws {
+        let root = try makeTempDirectory(fileCount: 1, withQuarantine: true)
+        let locked = root.appending(path: "locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let lockedPath = locked.path(percentEncoded: false)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: lockedPath)
+            try? FileManager.default.removeItem(at: root)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: lockedPath)
+
+        let result = try service.removeQuarantineRecursively(root)
+
+        #expect(result.cleaned == 1)
+        // The locked folder fails twice over: once as an item of its own, once as
+        // a subtree the walk could not enter. Only the latter is a skip.
+        #expect(result.errors.count(where: { $0.error.isSkippedDirectory }) == 1)
+    }
+
     private func setQuarantine(on url: URL) {
         url.withUnsafeFileSystemRepresentation { path in
             guard let path else { return }
@@ -70,29 +90,32 @@ struct QuarantineServiceTests {
 
     // MARK: - removeQuarantine
 
-    @Test("Removes quarantine attribute")
+    @Test("Removes quarantine attribute and reports it was present")
     func removesQuarantine() throws {
         let url = try makeTempFile(withQuarantine: true)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        try service.removeQuarantine(url)
+        let removed = try service.removeQuarantine(url)
 
+        #expect(removed == true)
         #expect(service.hasQuarantine(url) == false)
     }
 
-    @Test("Does not throw when removing quarantine from clean file")
-    func doesNotThrowForCleanFile() throws {
+    @Test("Removing from a clean file does not throw and reports nothing removed")
+    func removingFromCleanFileReportsNothingRemoved() throws {
         let url = try makeTempFile(withQuarantine: false)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        try service.removeQuarantine(url)
+        let removed = try service.removeQuarantine(url)
+
+        #expect(removed == false)
     }
 
     @Test("Throws fileNotFound for non-existent file")
     func throwsForNonExistentFile() {
         let url = URL(filePath: "/tmp/smuggler-no-such-file-\(UUID().uuidString)")
 
-        #expect(throws: QuarantineError.self) {
+        #expect(throws: QuarantineError.fileNotFound(url)) {
             try service.removeQuarantine(url)
         }
     }
@@ -129,7 +152,7 @@ struct QuarantineServiceTests {
     func throwsFileNotFoundForMissingDirectory() {
         let url = URL(filePath: "/tmp/smuggler-no-such-dir-\(UUID().uuidString)")
 
-        #expect(throws: QuarantineError.self) {
+        #expect(throws: QuarantineError.fileNotFound(url)) {
             _ = try service.removeQuarantineRecursively(url)
         }
     }
@@ -159,22 +182,30 @@ struct QuarantineServiceTests {
         }
     }
 
-    @Test("Returns false when removing quarantine from clean file")
-    func returnsFalseWhenRemovingFromCleanFile() throws {
-        let url = try makeTempFile(withQuarantine: false)
-        defer { try? FileManager.default.removeItem(at: url) }
+    @Test("Descends into subdirectories and skips symlinks instead of following them")
+    func descendsIntoSubdirectoriesAndSkipsSymlinks() throws {
+        let dir = try makeTempDirectory(fileCount: 1, withQuarantine: true)
+        let target = try makeTempFile(withQuarantine: true)
+        let sub = dir.appending(path: "sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        let nested = sub.appending(path: "nested")
+        try "test".write(to: nested, atomically: true, encoding: .utf8)
+        setQuarantine(on: nested)
+        // removexattr follows symlinks, so a link inside the tree must be
+        // skipped — otherwise it would strip quarantine from its target.
+        try FileManager.default.createSymbolicLink(
+            at: sub.appending(path: "link"), withDestinationURL: target)
+        defer {
+            try? FileManager.default.removeItem(at: dir)
+            try? FileManager.default.removeItem(at: target)
+        }
 
-        let removed = try service.removeQuarantine(url)
-        #expect(removed == false)
-    }
+        let result = try service.removeQuarantineRecursively(dir)
 
-    @Test("Returns true when removing quarantine from quarantined file")
-    func returnsTrueWhenRemovingFromQuarantinedFile() throws {
-        let url = try makeTempFile(withQuarantine: true)
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let removed = try service.removeQuarantine(url)
-        #expect(removed == true)
+        #expect(result.errors.isEmpty)
+        #expect(result.cleaned == 2)  // top-level file + nested file; the link is skipped
+        #expect(service.hasQuarantine(nested) == false)
+        #expect(service.hasQuarantine(target) == true)
     }
 
     @Test("Processes empty directory without errors")
@@ -187,6 +218,26 @@ struct QuarantineServiceTests {
         #expect(result.processed == 1)  // only the directory itself
         #expect(result.cleaned == 0)
         #expect(result.errors.isEmpty)
+    }
+
+    @Test("Permission failure on the input maps to permissionDenied, not fileNotFound")
+    func permissionFailureMapsToPermissionDenied() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Built by hand, not taken from a directory listing — listing APIs cache
+        // resource values on the returned URLs, which would mask the stat failure.
+        let file = dir.appending(path: "unreachable")
+        try "test".write(to: file, atomically: true, encoding: .utf8)
+        let dirPath = dir.path(percentEncoded: false)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: dirPath)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dirPath)
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        #expect(throws: QuarantineError.permissionDenied(file)) {
+            _ = try service.removeQuarantineRecursively(file)
+        }
     }
 
     @Test("Removes quarantine from directory that itself has the attribute")

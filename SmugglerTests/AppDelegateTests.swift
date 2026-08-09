@@ -33,7 +33,7 @@ struct AppDelegateColdLaunchTests {
 
         delegate.completeLaunch(isDefaultLaunch: false)
 
-        try await Task.sleep(for: .milliseconds(250))
+        try await waitUntil { delegate.isReady }
         #expect(delegate.consumeColdLaunch() == false)
     }
 

@@ -14,9 +14,8 @@ final class FinderSync: FIFinderSync {
     override init() {
         super.init()
         // FinderSync only invokes the extension for items inside its registered
-        // directories, and quarantined files can live anywhere the user browses —
-        // no scope narrower than the whole volume covers arbitrary locations.
-        FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
+        // directories, and quarantined files can live anywhere the user browses.
+        FIFinderSyncController.default().directoryURLs = [URL(filePath: "/")]
         logger.info("FinderSync initialized, observing /")
     }
 
@@ -24,8 +23,8 @@ final class FinderSync: FIFinderSync {
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
         let urls = FIFinderSyncController.default().selectedItemURLs() ?? []
-        // contains(where:) short-circuits — menu construction runs synchronously
-        // inside Finder, so don't getxattr the whole selection just for a count.
+        // Menu construction runs synchronously inside Finder — don't getxattr
+        // the whole selection just for a count.
         let hasQuarantinedItem = urls.contains(where: { Self.hasQuarantine($0) })
         logger.debug(
             "menu(for:) kind=\(menuKind.rawValue) selection=\(urls.count) quarantined=\(hasQuarantinedItem)")
@@ -95,7 +94,11 @@ final class FinderSync: FIFinderSync {
         logger.info("Opening smuggler URL for \(urls.count) item(s), action: \(action)")
 
         Task { @MainActor in
-            NSWorkspace.shared.open(url)
+            if !NSWorkspace.shared.open(url) {
+                // Overlong URLs from huge selections can make Launch Services
+                // decline the whole request — leave a trace instead of nothing.
+                logger.error("NSWorkspace declined to open the smuggler:// URL (\(urls.count) items)")
+            }
         }
     }
 

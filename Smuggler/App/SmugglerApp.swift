@@ -25,7 +25,10 @@ struct SmugglerApp: App {
             ContentView(appModel: appDelegate.appModel)
                 .onOpenURL { url in
                     let isColdLaunch = appDelegate.consumeColdLaunch()
-                    guard let request = AppModel.parseIncomingURL(url) else { return }
+                    guard let request = IncomingRequest(url: url) else {
+                        appDelegate.appModel.rejectIncomingRequest(url, isColdLaunch: isColdLaunch)
+                        return
+                    }
                     if !isColdLaunch {
                         NSApp.activate(ignoringOtherApps: true)
                     }

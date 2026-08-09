@@ -1,10 +1,5 @@
 import Foundation
 
-nonisolated enum ServiceAction: String, Sendable {
-    case open
-    case remove
-}
-
 nonisolated enum FileStatus: Equatable, Sendable {
     case processing
     case clean
@@ -23,6 +18,17 @@ nonisolated enum FileStatus: Equatable, Sendable {
     var hasErrors: Bool {
         switch self {
         case .error, .partialSuccess: true
+        default: false
+        }
+    }
+
+    // A subtree the walk could not descend into is reported like any other error,
+    // but it leaves nothing to act on in the window — it must not hold a headless
+    // session open the way a real failure does.
+    var hasActionableErrors: Bool {
+        switch self {
+        case .error(let error): !error.isSkippedDirectory
+        case .partialSuccess(_, let errors): errors.contains { !$0.error.isSkippedDirectory }
         default: false
         }
     }

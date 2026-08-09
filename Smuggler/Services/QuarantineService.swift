@@ -27,39 +27,42 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
     case timeout(URL)
     case systemError(URL, Int32)
     case blockedPath(URL)
+    case unreadableDirectory(URL)
+
+    var isSkippedDirectory: Bool {
+        if case .unreadableDirectory = self { true } else { false }
+    }
 
     var errorDescription: String? {
         switch self {
         case .invalidURL(let url):
-            let path = url.absoluteString
-            return String(
-                localized: "Invalid URL: \(path)",
+            String(
+                localized: "Invalid URL: \(url.absoluteString)",
                 comment: "Error: URL is not a valid file URL")
         case .fileNotFound(let url):
-            let name = url.lastPathComponent
-            return String(
-                localized: "File not found: \(name)",
+            String(
+                localized: "File not found: \(url.lastPathComponent)",
                 comment: "Error: file does not exist")
         case .permissionDenied(let url):
-            let name = url.lastPathComponent
-            return String(
-                localized: "Permission denied: \(name)",
+            String(
+                localized: "Permission denied: \(url.lastPathComponent)",
                 comment: "Error: no permission to access file")
         case .timeout(let url):
-            let name = url.lastPathComponent
-            return String(
-                localized: "Processing timed out: \(name)",
+            String(
+                localized: "Processing timed out: \(url.lastPathComponent)",
                 comment: "Error: operation took too long")
         case .systemError(let url, let code):
-            let name = url.lastPathComponent
-            return String(
-                localized: "System error \(code) for: \(name)",
+            String(
+                localized: "System error \(code) for: \(url.lastPathComponent)",
                 comment: "Error: unexpected system error with errno code")
         case .blockedPath(let url):
-            let name = url.lastPathComponent
-            return String(
-                localized: "System location cannot be modified: \(name)",
+            String(
+                localized: "System location cannot be modified: \(url.lastPathComponent)",
                 comment: "Error: path is in a protected system location")
+        case .unreadableDirectory(let url):
+            String(
+                localized: "Could not read \(url.lastPathComponent) — the files inside were skipped",
+                comment: "Error: a subfolder could not be descended into, so its contents were never processed")
         }
     }
 }
@@ -79,11 +82,24 @@ nonisolated struct QuarantineService: Sendable {
 
     private static let lowercasedBlockedPrefixes = blockedPathPrefixes.map { $0.lowercased() }
 
+    private static let dataVolumeRoot = "/system/volumes/data/"
+
     static func isBlockedPath(_ url: URL) -> Bool {
-        // Resolve symlinks so an alias cannot smuggle a blocked tree past the
-        // check, and compare case-insensitively — the default APFS volume
-        // resolves /library/... to the same item as /Library/...
-        let path = url.resolvingSymlinksInPath().path(percentEncoded: false).lowercased() + "/"
+        // Resolve symlinks so an alias cannot smuggle a blocked tree past the check.
+        hasBlockedPrefix(url.resolvingSymlinksInPath())
+    }
+
+    // String-only, no filesystem syscalls: safe on the main actor for arbitrarily
+    // large batches. Case-insensitive — the default APFS volume resolves
+    // /library/... to the same item as /Library/...
+    static func hasBlockedPrefix(_ url: URL) -> Bool {
+        var path = url.standardizedFileURL.path(percentEncoded: false).lowercased() + "/"
+        // The Data volume firmlinks onto the root: /System/Volumes/Data/Users/… is
+        // the same item as /Users/…, the form Finder hands us. The bare mount point
+        // stays blocked — that is the whole volume.
+        if path.hasPrefix(dataVolumeRoot), path.count > dataVolumeRoot.count {
+            path = "/" + path.dropFirst(dataVolumeRoot.count)
+        }
         return lowercasedBlockedPrefixes.contains { path.hasPrefix($0) }
     }
 
@@ -105,7 +121,7 @@ nonisolated struct QuarantineService: Sendable {
                 switch code {
                 case ENOENT: throw QuarantineError.fileNotFound(url)
                 case EACCES, EPERM: throw QuarantineError.permissionDenied(url)
-                case ENOATTR: return false  // Attribute was not present
+                case ENOATTR: return false
                 default: throw QuarantineError.systemError(url, code)
                 }
             }
@@ -132,20 +148,39 @@ nonisolated struct QuarantineService: Sendable {
         }
 
         // Check existence and directory status in one call — avoids TOCTOU with removexattr.
-        let resourceValues = try? url.resourceValues(forKeys: [.isDirectoryKey])
-        guard resourceValues != nil else {
+        let isDir: Bool
+        do {
+            isDir = try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
+        } catch let error as CocoaError where error.code == .fileReadNoPermission {
+            throw QuarantineError.permissionDenied(url)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
             throw QuarantineError.fileNotFound(url)
+        } catch {
+            // An I/O fault on an existing file must not masquerade as "not found".
+            throw QuarantineError.systemError(url, -1)
         }
-        let isDir = resourceValues?.isDirectory == true
 
         var result = QuarantineResult()
         removeQuarantineFromItem(url, into: &result)
 
         if isDir {
+            // Collected separately: `result` is passed inout inside the loop, so the
+            // escaping error handler must not capture it as well.
+            var descentErrors: [QuarantineFileError] = []
             guard
                 let enumerator = FileManager.default.enumerator(
                     at: url,
-                    includingPropertiesForKeys: [.isSymbolicLinkKey]
+                    includingPropertiesForKeys: [.isSymbolicLinkKey],
+                    options: [],
+                    errorHandler: { failedURL, _ in
+                        // A skipped subtree must surface as an error — a silent skip
+                        // would report "clean" for files that were never touched. Its
+                        // own case: how many files it hid is unknowable from here, so
+                        // it must not read as a single failed file.
+                        descentErrors.append(
+                            QuarantineFileError(url: failedURL, error: .unreadableDirectory(failedURL)))
+                        return true
+                    }
                 )
             else {
                 result.errors.append(QuarantineFileError(url: url, error: .permissionDenied(url)))
@@ -162,6 +197,7 @@ nonisolated struct QuarantineService: Sendable {
                 }
                 removeQuarantineFromItem(itemURL, into: &result)
             }
+            result.errors.append(contentsOf: descentErrors)
         }
 
         return result

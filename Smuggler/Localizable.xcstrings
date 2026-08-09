@@ -14,11 +14,23 @@
     },
     "%lld files freed from quarantine.\n%lld files could not be processed:" : {
       "comment" : "Error popover: partial success details, followed by the failing file names",
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld Dateien von Quarantäne befreit.\n%lld Dateien konnten nicht verarbeitet werden:"
+          }
+        }
+      }
+    },
+    "%lld files freed from quarantine.\n%lld items could not be processed:" : {
+      "comment" : "Error popover: partial success details, followed by the failing item names",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld files freed from quarantine.\n%2$lld items could not be processed:"
           }
         }
       }
@@ -144,6 +156,39 @@
         }
       }
     },
+    "and %lld more files" : {
+      "comment" : "Error popover: suffix when the failing-file list is truncated",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "und %lld weitere Dateien"
+          }
+        }
+      }
+    },
+    "and %lld more items" : {
+      "comment" : "Service window: summary row when several items are hidden by the row cap",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "und %lld weitere Elemente"
+          }
+        }
+      }
+    },
+    "and 1 more item" : {
+      "comment" : "Service window: summary row when one item is hidden by the row cap",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "und 1 weiteres Element"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "comment" : "Confirm dialog: cancel button",
       "localizations" : {
@@ -265,6 +310,9 @@
           }
         }
       }
+    },
+    "Could not read %@ — the files inside were skipped" : {
+      "comment" : "Error: a subfolder could not be descended into, so its contents were never processed"
     },
     "Could not remove quarantine from %@." : {
       "comment" : "Notification body: single file failure",
@@ -416,6 +464,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Es wurde keine Quarantäne entfernt."
+          }
+        }
+      }
+    },
+    "Only continue if you started this yourself.\n\n%@" : {
+      "comment" : "Confirm dialog body: warn about an external quarantine-removal request",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fahre nur fort, wenn du das selbst gestartet hast.\n\n%@"
           }
         }
       }
@@ -665,17 +724,6 @@
     "Smuggler" : {
       "comment" : "Brand name — do not translate.",
       "shouldTranslate" : false
-    },
-    "Smuggler could not verify that this request came from its Finder extension. Only continue if you initiated it.\n\n%@" : {
-      "comment" : "Confirm dialog body: warn about an external quarantine-removal request",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smuggler konnte nicht überprüfen, ob diese Anfrage von der Finder-Erweiterung stammt. Fahre nur fort, wenn du sie selbst ausgelöst hast.\n\n%@"
-          }
-        }
-      }
     },
     "System error %d for: %@" : {
       "comment" : "Error: unexpected system error with errno code",

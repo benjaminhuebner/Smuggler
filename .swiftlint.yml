@@ -39,6 +39,8 @@ only_rules:
   - generic_type_name
 
   # --- Correctness ---
+  - private_swiftui_state
+  - superfluous_disable_command
   - force_cast
   - force_try
   - force_unwrapping
@@ -59,6 +61,7 @@ excluded:
   - .build
   - DerivedData
   - .swiftpm
+  - Smuggler.plumage/
 
 # --- Rule configuration ---
 

@@ -41,8 +41,9 @@ nonisolated struct ServiceTokenStore: Sendable {
             let issuedAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
         else { return false }
 
-        // Delete first so even a stale token cannot be presented twice.
-        try? FileManager.default.removeItem(at: file)
+        // Delete first so even a stale token cannot be presented twice; if the
+        // delete fails the file would stay presentable, so fail closed.
+        guard (try? FileManager.default.removeItem(at: file)) != nil else { return false }
         return Date().timeIntervalSince(issuedAt) <= maxAge
     }
 

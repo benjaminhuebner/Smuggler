@@ -14,9 +14,8 @@ enum NotificationService {
                 .requestAuthorization(options: [.alert, .sound])
             logger.info("Notification authorization: \(granted ? "granted" : "denied")")
         } catch let error as UNError where error.code == .notificationsNotAllowed {
-            // Expected when app is launched programmatically (Services, headless) before
-            // the user has ever opened the app directly from /Applications.
-            // Works correctly on first normal user launch.
+            // Expected when the app is launched programmatically (Services, headless)
+            // before the user has ever opened it directly from /Applications.
             logger.debug("Notifications not yet allowed — will be requested on next user launch")
         } catch {
             logger.warning("Notification authorization failed: \(error)")
@@ -60,18 +59,17 @@ enum NotificationService {
     // MARK: - Content Building (pure, testable)
 
     nonisolated static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
-        guard let firstName = items.first?.name else {
+        guard !items.isEmpty else {
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), "")
         }
+        // Cancelled rows count toward nothing: a batch the user stopped themselves
+        // must not read as one where the remaining items failed.
         let successCount = items.count(where: \.status.isSuccessful)
-        let hasErrors = items.contains(where: \.status.hasErrors)
-        let total = items.count
+        let errorCount = items.count(where: \.status.hasErrors)
+        let attemptedCount = items.count { $0.status.isSuccessful || $0.status.hasErrors }
 
-        // Distinguish genuine failures from a batch the user cancelled (no
-        // successes, but also no errors) so success copy is never shown when
-        // no quarantine was actually removed.
         if successCount == 0 {
-            if !hasErrors {
+            guard let firstFailed = items.first(where: \.status.hasErrors) else {
                 return (
                     String(localized: "Cancelled", comment: "Notification title: nothing processed"),
                     String(
@@ -79,27 +77,25 @@ enum NotificationService {
                         comment: "Notification body: cancelled, nothing removed")
                 )
             }
-            let name = firstName
             let body =
-                total == 1
+                errorCount == 1
                 ? String(
-                    localized: "Could not remove quarantine from \(name).",
+                    localized: "Could not remove quarantine from \(firstFailed.name).",
                     comment: "Notification body: single file failure")
                 : String(
-                    localized: "Could not remove quarantine from \(total) items.",
+                    localized: "Could not remove quarantine from \(errorCount) items.",
                     comment: "Notification body: multiple files failure")
             return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
         }
 
-        if !hasErrors {
-            let name = firstName
+        if errorCount == 0, let firstSuccess = items.first(where: \.status.isSuccessful) {
             let body =
-                total == 1
+                successCount == 1
                 ? String(
-                    localized: "\(name) is ready to use.",
+                    localized: "\(firstSuccess.name) is ready to use.",
                     comment: "Notification body: single file success")
                 : String(
-                    localized: "\(total) items are ready to use.",
+                    localized: "\(successCount) items are ready to use.",
                     comment: "Notification body: multiple files success")
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), body)
         }
@@ -107,7 +103,7 @@ enum NotificationService {
         return (
             String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"),
             String(
-                localized: "\(successCount) of \(total) items cleaned. Some items had errors.",
+                localized: "\(successCount) of \(attemptedCount) items cleaned. Some items had errors.",
                 comment: "Notification body: partial success")
         )
     }

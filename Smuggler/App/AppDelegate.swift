@@ -13,8 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var updater = UpdaterController()
 
     // False while the app is still handling the request that launched it —
-    // such a request must use cold-launch service mode. Consumers flip it to
-    // true when the first request arrives (see consumeColdLaunch()).
+    // such a request must use cold-launch service mode (see consumeColdLaunch()).
     var isReady = false
 
     // Non-default launches include reasons that never deliver a request (own

@@ -11,16 +11,7 @@ struct ServiceTokenStoreTests {
         return (ServiceTokenStore(containerURL: container), container)
     }
 
-    @Test("A freshly issued token validates exactly once")
-    func validTokenConsumes() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
-        let token = try #require(store.issueToken())
-        #expect(store.consumeToken(token) == true)
-    }
-
-    @Test("A replayed token is rejected")
+    @Test("A freshly issued token validates exactly once, a replay is rejected")
     func replayedTokenFails() throws {
         let (store, container) = try makeStore()
         defer { try? FileManager.default.removeItem(at: container) }
@@ -45,6 +36,23 @@ struct ServiceTokenStoreTests {
         #expect(store.consumeToken(token) == false)
     }
 
+    @Test("A token whose file cannot be deleted is rejected")
+    func undeletableTokenFailsClosed() throws {
+        let (store, container) = try makeStore()
+        let tokensDir = container.appending(path: "ServiceTokens")
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: tokensDir.path(percentEncoded: false))
+            try? FileManager.default.removeItem(at: container)
+        }
+
+        let token = try #require(store.issueToken())
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o555], ofItemAtPath: tokensDir.path(percentEncoded: false))
+
+        #expect(store.consumeToken(token) == false)
+    }
+
     @Test("A token that was never issued is rejected")
     func missingTokenFails() throws {
         let (store, container) = try makeStore()
@@ -61,6 +69,23 @@ struct ServiceTokenStoreTests {
         #expect(store.consumeToken("not-a-uuid") == false)
         #expect(store.consumeToken("../../../etc/passwd") == false)
         #expect(store.consumeToken("") == false)
+    }
+
+    @Test("Issuing a token prunes stale token files")
+    func issuePrunesStaleTokens() throws {
+        let (store, container) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let stale = try #require(store.issueToken())
+        let staleFile = container.appending(path: "ServiceTokens").appending(path: stale)
+        try FileManager.default.setAttributes(
+            [.creationDate: Date(timeIntervalSinceNow: -(ServiceTokenStore.defaultMaxAge + 60))],
+            ofItemAtPath: staleFile.path(percentEncoded: false)
+        )
+
+        _ = try #require(store.issueToken())
+
+        #expect(!FileManager.default.fileExists(atPath: staleFile.path(percentEncoded: false)))
     }
 
     @Test("An unavailable group container fails safe")

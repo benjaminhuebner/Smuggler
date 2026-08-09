@@ -3,95 +3,6 @@ import Testing
 
 @testable import Smuggler
 
-@Suite("AppModel — URL Parsing")
-struct AppModelURLParsingTests {
-    @Test("Parses valid smuggler://process URL with single path")
-    func parsesSinglePath() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/MyApp.app&action=open&quitAfter=true"))
-        let request = AppModel.parseIncomingURL(url)
-
-        #expect(request != nil)
-        #expect(request?.urls.count == 1)
-        #expect(request?.urls[0].path(percentEncoded: false) == "/tmp/MyApp.app")
-        #expect(request?.action == .open)
-        #expect(request?.quitAfter == true)
-    }
-
-    @Test("Parses URL with multiple path parameters")
-    func parsesMultiplePaths() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&path=/tmp/b.dmg"))
-        let request = AppModel.parseIncomingURL(url)
-
-        #expect(request != nil)
-        #expect(request?.urls.count == 2)
-    }
-
-    @Test("Defaults action to 'open' when missing")
-    func defaultsActionToOpen() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app"))
-        let request = AppModel.parseIncomingURL(url)
-
-        #expect(request?.action == .open)
-    }
-
-    @Test("Defaults quitAfter to false when missing")
-    func defaultsQuitAfterToFalse() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app"))
-        let request = AppModel.parseIncomingURL(url)
-
-        #expect(request?.quitAfter == false)
-    }
-
-    @Test("Returns nil for wrong scheme")
-    func returnsNilForWrongScheme() throws {
-        let url = try #require(URL(string: "https://process?path=/tmp/a.app"))
-        #expect(AppModel.parseIncomingURL(url) == nil)
-    }
-
-    @Test("Returns nil for wrong host")
-    func returnsNilForWrongHost() throws {
-        let url = try #require(URL(string: "smuggler://launch?path=/tmp/a.app"))
-        #expect(AppModel.parseIncomingURL(url) == nil)
-    }
-
-    @Test("Returns nil when path parameter is missing")
-    func returnsNilForMissingPath() throws {
-        let url = try #require(URL(string: "smuggler://process?action=open"))
-        #expect(AppModel.parseIncomingURL(url) == nil)
-    }
-
-    @Test("Parses action=remove correctly")
-    func parsesRemoveAction() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&action=remove"))
-        let request = AppModel.parseIncomingURL(url)
-
-        #expect(request?.action == .remove)
-    }
-
-    @Test("Rejects unknown action parameter")
-    func rejectsUnknownAction() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&action=delete"))
-        #expect(AppModel.parseIncomingURL(url) == nil)
-    }
-
-    @Test("Parsing keeps blocked paths — refusal happens in the processing pipeline")
-    func parseKeepsBlockedPaths() throws {
-        let url = try #require(
-            URL(string: "smuggler://process?path=/tmp/a.app&path=/usr/bin/true&action=remove"))
-        let request = try #require(AppModel.parseIncomingURL(url))
-
-        #expect(request.urls.count == 2)
-    }
-
-    @Test("Parses paths without checking existence (validation happens at call site)")
-    func parsesNonExistentPaths() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/nonexistent/\(UUID().uuidString)"))
-        let request = AppModel.parseIncomingURL(url)
-        #expect(request != nil)
-        #expect(request?.urls.count == 1)
-    }
-}
-
 @Suite("Scope guard")
 struct ScopeGuardTests {
     @Test(
@@ -134,6 +45,38 @@ struct ScopeGuardTests {
             at: link, withDestinationURL: URL(filePath: "/usr/bin"))
         defer { try? FileManager.default.removeItem(at: link) }
 
+        #expect(QuarantineService.isBlockedPath(link.appending(path: "true")))
+    }
+
+    @Test("Lexical prefix check refuses blocked paths and normalizes parent traversal")
+    func lexicalCheckRefusesBlockedPrefixes() {
+        #expect(QuarantineService.hasBlockedPrefix(URL(filePath: "/System/Library/Foo.kext")))
+        #expect(QuarantineService.hasBlockedPrefix(URL(filePath: "/USR/bin/true")))
+        #expect(QuarantineService.hasBlockedPrefix(URL(filePath: "/tmp/../usr/bin/true")))
+        #expect(!QuarantineService.hasBlockedPrefix(URL(filePath: "/System/../tmp/foo")))
+        #expect(!QuarantineService.hasBlockedPrefix(URL(filePath: "/Users/me/Downloads/a.dmg")))
+    }
+
+    @Test("A user path in its Data-volume firmlink form is allowed")
+    func allowsDataVolumeFirmlinkForm() {
+        let download = URL(filePath: "/System/Volumes/Data/Users/me/Downloads/a.dmg")
+        #expect(!QuarantineService.hasBlockedPrefix(download))
+        #expect(!QuarantineService.isBlockedPath(download))
+
+        // The firmlink cuts both ways: /System/Volumes/Data/usr is /usr.
+        #expect(QuarantineService.hasBlockedPrefix(URL(filePath: "/System/Volumes/Data/usr/local/bin/tool")))
+        // The bare mount point stays refused — that is the whole volume.
+        #expect(QuarantineService.hasBlockedPrefix(URL(filePath: "/System/Volumes/Data")))
+    }
+
+    @Test("A symlink alias passes the lexical check but is caught by the resolved check")
+    func symlinkAliasFallsToResolvedCheck() throws {
+        let link = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(
+            at: link, withDestinationURL: URL(filePath: "/usr/bin"))
+        defer { try? FileManager.default.removeItem(at: link) }
+
+        #expect(!QuarantineService.hasBlockedPrefix(link.appending(path: "true")))
         #expect(QuarantineService.isBlockedPath(link.appending(path: "true")))
     }
 
@@ -203,11 +146,70 @@ struct AppModelEnqueueTests {
         #expect(blockedItem?.status == .error(.blockedPath(blocked)))
         #expect(model.processingCount == 1)
     }
+
+    @Test("A single batch inserts newest-first like sequential enqueues")
+    func enqueueBatchOrdersNewestFirst() {
+        let model = AppModel()
+        model.enqueue(urls: [URL(filePath: "/tmp/first.app"), URL(filePath: "/tmp/second.app")])
+
+        #expect(model.items.map(\.name) == ["second.app", "first.app"])
+    }
+
+    @Test("cancel marks a processing item as cancelled")
+    func cancelMarksCancelled() {
+        let model = AppModel()
+        let entries = model.enqueue(urls: [URL(filePath: "/tmp/pending.app")])
+        let id = entries[0].id
+
+        #expect(model.isProcessing == true)
+        model.cancel(id: id)
+
+        #expect(model.items[0].status == .cancelled)
+        #expect(model.isProcessing == false)
+        #expect(model.allCancelled == true)
+    }
 }
 
 @Suite("AppModel — Processing")
 @MainActor
 struct AppModelProcessingTests {
+    // `authorize` is always stubbed: its real implementation raises the system
+    // notification prompt on the machine running the suite.
+    private func makeModel(
+        minimumProcessingDuration: Duration = .zero,
+        processingTimeout: Duration = .seconds(30),
+        confirm: AppModel.ConfirmHandler? = nil,
+        open: AppModel.OpenHandler? = nil,
+        terminate: AppModel.TerminateHandler? = nil,
+        notify: AppModel.NotifyHandler? = nil,
+        tokenStore: ServiceTokenStore = ServiceTokenStore()
+    ) -> AppModel {
+        AppModel(
+            minimumProcessingDuration: minimumProcessingDuration,
+            processingTimeout: processingTimeout,
+            confirm: confirm,
+            open: open,
+            terminate: terminate,
+            authorize: {},
+            notify: notify,
+            tokenStore: tokenStore
+        )
+    }
+
+    @Test("Cancel All reaches rows enqueued before their tasks exist")
+    func cancelAllReachesTasklessRows() {
+        let model = makeModel(minimumProcessingDuration: .zero)
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+
+        model.enqueue(urls: [url])
+        #expect(model.isProcessing)
+
+        model.cancelAll()
+
+        #expect(model.items[0].status == .cancelled)
+        #expect(!model.isProcessing)
+    }
+
     private func makeQuarantinedFile() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try "test".write(to: url, atomically: true, encoding: .utf8)
@@ -219,26 +221,11 @@ struct AppModelProcessingTests {
         return url
     }
 
-    private struct WaitTimeoutError: Error {}
-
-    private func waitUntil(
-        timeout: Duration = .seconds(5),
-        _ condition: @MainActor () -> Bool
-    ) async throws {
-        let start = ContinuousClock.now
-        while !condition() {
-            if ContinuousClock.now - start > timeout {
-                throw WaitTimeoutError()
-            }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-    }
-
     @Test("process removes quarantine and marks the item clean")
     func processMarksClean() async throws {
         let url = try makeQuarantinedFile()
         defer { try? FileManager.default.removeItem(at: url) }
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
 
         await model.process(urls: [url])
 
@@ -253,7 +240,7 @@ struct AppModelProcessingTests {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try "test".write(to: url, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: url) }
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
 
         await model.process(urls: [url])
 
@@ -287,7 +274,7 @@ struct AppModelProcessingTests {
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o000], ofItemAtPath: locked.path(percentEncoded: false))
 
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
         await model.process(urls: [dir])
 
         guard case .partialSuccess(let cleaned, let errors) = model.items[0].status else {
@@ -303,7 +290,7 @@ struct AppModelProcessingTests {
     func processDeduplicatesBatch() async throws {
         let url = try makeQuarantinedFile()
         defer { try? FileManager.default.removeItem(at: url) }
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
 
         await model.process(urls: [url, url])
 
@@ -317,7 +304,7 @@ struct AppModelProcessingTests {
     func serviceURLsProcessWhenAlreadyOpen() async throws {
         let url = try makeQuarantinedFile()
         defer { try? FileManager.default.removeItem(at: url) }
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
 
         model.handleServiceURLs([url], action: .remove, quitAfter: false)
 
@@ -351,7 +338,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { urls, kind in
                 recorder.confirmedURLs = urls
@@ -377,7 +364,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { _, _ in false },
             open: { recorder.openedURLs = $0 },
@@ -402,7 +389,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { urls, kind in
                 recorder.confirmedURLs = urls
@@ -412,7 +399,8 @@ struct AppModelProcessingTests {
             tokenStore: try makeTokenStore()
         )
 
-        model.handleURLRequest(urls: [url], action: .remove, quitAfter: false, token: nil)
+        model.handleURLRequest(
+            urls: [url], removableURLs: [url], action: .remove, quitAfter: false, trusted: false)
 
         try await waitUntil { !model.items.isEmpty && model.items[0].status != .processing }
         #expect(recorder.confirmedKinds == [.remove])
@@ -426,14 +414,15 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { _, _ in false },
             terminate: { recorder.terminateCount += 1 },
             tokenStore: try makeTokenStore()
         )
 
-        model.handleURLRequest(urls: [url], action: .remove, quitAfter: true, token: nil)
+        model.handleURLRequest(
+            urls: [url], removableURLs: [url], action: .remove, quitAfter: true, trusted: false)
 
         try await waitUntil { recorder.terminateCount > 0 }
         #expect(model.items.isEmpty)
@@ -447,7 +436,7 @@ struct AppModelProcessingTests {
         let recorder = HandlerRecorder()
         let store = try makeTokenStore()
         let token = try #require(store.issueToken())
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { _, kind in
                 recorder.confirmedKinds.append(kind)
@@ -456,7 +445,10 @@ struct AppModelProcessingTests {
             tokenStore: store
         )
 
-        model.handleURLRequest(urls: [url], action: .remove, quitAfter: false, token: token)
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: false, token: token),
+            isColdLaunch: false
+        ).value
 
         try await waitUntil { !model.items.isEmpty && model.items[0].status != .processing }
         #expect(recorder.confirmedKinds.isEmpty)
@@ -469,7 +461,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { _, kind in
                 recorder.confirmedKinds.append(kind)
@@ -478,26 +470,19 @@ struct AppModelProcessingTests {
             tokenStore: try makeTokenStore()
         )
 
-        model.handleURLRequest(urls: [url], action: .remove, quitAfter: false, token: UUID().uuidString)
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: false, token: UUID().uuidString),
+            isColdLaunch: false
+        ).value
 
         #expect(recorder.confirmedKinds == [.remove])
         #expect(model.items.isEmpty)
     }
 
-    @Test("Parsed URL request carries its token through")
-    func parseExtractsToken() throws {
-        let token = UUID().uuidString
-        let url = try #require(
-            URL(string: "smuggler://process?path=/tmp/a.app&action=remove&token=\(token)"))
-        let request = try #require(AppModel.parseIncomingURL(url))
-
-        #expect(request.token == token)
-    }
-
     @Test("Blocked-only service request shows error rows and notifies without quitting")
     func blockedRequestProducesFeedback() async throws {
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             terminate: { recorder.terminateCount += 1 },
             notify: { recorder.notifiedBatches.append($0) }
@@ -520,7 +505,7 @@ struct AppModelProcessingTests {
         let blocked = URL(filePath: "/usr/bin/true")
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             terminate: { recorder.terminateCount += 1 },
             notify: { recorder.notifiedBatches.append($0) }
@@ -541,7 +526,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { urls, kind in
                 recorder.confirmedURLs = urls
@@ -551,7 +536,8 @@ struct AppModelProcessingTests {
             tokenStore: try makeTokenStore()
         )
 
-        model.handleURLRequest(urls: [url], action: .open, quitAfter: false, token: nil)
+        model.handleURLRequest(
+            urls: [url], removableURLs: [url], action: .open, quitAfter: false, trusted: false)
 
         #expect(recorder.confirmedKinds == [.remove])
         #expect(recorder.confirmedURLs == [url])
@@ -565,7 +551,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             confirm: { _, kind in
                 recorder.confirmedKinds.append(kind)
@@ -575,7 +561,8 @@ struct AppModelProcessingTests {
             tokenStore: try makeTokenStore()
         )
 
-        model.handleURLRequest(urls: [url], action: .open, quitAfter: false, token: nil)
+        model.handleURLRequest(
+            urls: [url], removableURLs: [url], action: .open, quitAfter: false, trusted: false)
 
         try await waitUntil { recorder.openedURLs == [url] }
         #expect(recorder.confirmedKinds == [.remove, .open])
@@ -587,7 +574,7 @@ struct AppModelProcessingTests {
         let missing = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
             terminate: { recorder.terminateCount += 1 },
             notify: { recorder.notifiedBatches.append($0) }
@@ -606,7 +593,7 @@ struct AppModelProcessingTests {
     @Test("A failed file can be re-dropped and is re-processed in place")
     func redropAfterFailureReprocesses() async throws {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        let model = AppModel(minimumProcessingDuration: .zero)
+        let model = makeModel(minimumProcessingDuration: .zero)
 
         await model.process(urls: [url])
         #expect(model.items.count == 1)
@@ -637,9 +624,10 @@ struct AppModelProcessingTests {
         }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .zero,
-            terminate: { recorder.terminateCount += 1 }
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) }
         )
 
         model.handleServiceURLs([url1], action: .remove, quitAfter: true)
@@ -667,7 +655,7 @@ struct AppModelProcessingTests {
         let recorder = HandlerRecorder()
         // Long enough that a stale 800ms termination timer from batch 1 would
         // fire while batch 2 is still processing.
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .milliseconds(1200),
             confirm: { _, kind in
                 // Stand-in for the nested modal run loop: a second batch
@@ -701,7 +689,7 @@ struct AppModelProcessingTests {
         defer { try? FileManager.default.removeItem(at: url2) }
 
         let recorder = HandlerRecorder()
-        let model = AppModel(
+        let model = makeModel(
             minimumProcessingDuration: .milliseconds(500),
             terminate: { recorder.terminateCount += 1 },
             notify: { batch in
@@ -722,11 +710,83 @@ struct AppModelProcessingTests {
         #expect(recorder.terminateCount == 1)
     }
 
+    @Test("A warm batch arriving during a pending quit takes over the session")
+    func warmBatchCancelsPendingQuit() async throws {
+        let url1 = try makeQuarantinedFile()
+        let url2 = try makeQuarantinedFile()
+        defer {
+            try? FileManager.default.removeItem(at: url1)
+            try? FileManager.default.removeItem(at: url2)
+        }
+
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) }
+        )
+
+        model.handleServiceURLs([url1], action: .remove, quitAfter: true)
+        try await waitUntil { model.items.first?.status == .clean }
+        model.handleServiceURLs([url2], action: .remove, quitAfter: false)
+
+        #expect(model.serviceMode == nil)
+        try await waitUntil { model.items.count == 2 && model.items.allSatisfy { $0.status == .clean } }
+        // Give the stale 800ms termination from batch 1 a chance to fire — it must not.
+        try await Task.sleep(for: .milliseconds(1000))
+        #expect(recorder.terminateCount == 0)
+        // The takeover cancels the quit, not the finished batch's notification.
+        #expect(recorder.notifiedBatches.count == 1)
+        #expect(recorder.notifiedBatches.first?.contains { $0.url == url1 } == true)
+    }
+
+    @Test("A warm batch during a quitAfter batch's processing keeps its notification")
+    func warmTakeoverDuringProcessingKeepsNotification() async throws {
+        let url1 = try makeQuarantinedFile()
+        let url2 = try makeQuarantinedFile()
+        defer {
+            try? FileManager.default.removeItem(at: url1)
+            try? FileManager.default.removeItem(at: url2)
+        }
+
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .milliseconds(300),
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) }
+        )
+
+        model.handleServiceURLs([url1], action: .remove, quitAfter: true)
+        model.handleServiceURLs([url2], action: .remove, quitAfter: false)
+        #expect(model.serviceMode == nil)
+
+        try await waitUntil { !recorder.notifiedBatches.isEmpty }
+        #expect(recorder.notifiedBatches.first?.contains { $0.url == url1 } == true)
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(recorder.terminateCount == 0)
+    }
+
+    @Test("A walk that outlives the timeout yields a timeout row")
+    func processAppliesTimeout() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for index in 0..<500 {
+            try "x".write(to: dir.appending(path: "f\(index)"), atomically: false, encoding: .utf8)
+        }
+
+        let model = makeModel(minimumProcessingDuration: .zero, processingTimeout: .zero)
+        await model.process(urls: [dir])
+
+        #expect(model.items.first?.status == .error(.timeout(dir)))
+        #expect(model.isProcessing == false)
+    }
+
     @Test("A cancelled run draining after a re-drop must not clobber the new run")
     func cancelledRunDoesNotClobberRedrop() async throws {
         let url = try makeQuarantinedFile()
         defer { try? FileManager.default.removeItem(at: url) }
-        let model = AppModel(minimumProcessingDuration: .milliseconds(400))
+        let model = makeModel(minimumProcessingDuration: .milliseconds(400))
 
         let firstRun = Task { await model.process(urls: [url]) }
         try await waitUntil { model.items.first?.status == .processing }
@@ -749,17 +809,368 @@ struct AppModelProcessingTests {
         #expect(model.isProcessing == false)
     }
 
-    @Test("cancel marks a processing item as cancelled")
-    func cancelMarksCancelled() {
-        let model = AppModel()
-        let entries = model.enqueue(urls: [URL(filePath: "/tmp/pending.app")])
-        let id = entries[0].id
+    @Test("cancelAll cancels every in-flight item and keeps the rows")
+    func cancelAllCancelsInFlightItems() async throws {
+        let url1 = try makeQuarantinedFile()
+        let url2 = try makeQuarantinedFile()
+        defer {
+            try? FileManager.default.removeItem(at: url1)
+            try? FileManager.default.removeItem(at: url2)
+        }
+        let model = makeModel(minimumProcessingDuration: .seconds(5))
 
-        #expect(model.isProcessing == true)
-        model.cancel(id: id)
+        let run = Task { await model.process(urls: [url1, url2]) }
+        try await waitUntil { model.items.count == 2 && model.isProcessing }
+        model.cancelAll()
 
-        #expect(model.items[0].status == .cancelled)
+        #expect(model.items.count == 2)
+        #expect(model.items.allSatisfy { $0.status == .cancelled })
         #expect(model.isProcessing == false)
         #expect(model.allCancelled == true)
+        await run.value
+    }
+
+    @Test("Incoming request drops nonexistent paths without asking for confirmation")
+    func incomingRequestDropsNonexistentPaths() async throws {
+        let missing = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: try makeTokenStore()
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [missing], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        ).value
+
+        #expect(model.items.isEmpty)
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("Incoming request keeps blocked paths as refusal rows even when nonexistent")
+    func incomingRequestKeepsBlockedPaths() async throws {
+        let blocked = URL(filePath: "/usr/bin/\(UUID().uuidString)")
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: try makeTokenStore()
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [blocked], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        ).value
+
+        #expect(model.items.first?.status == .error(.blockedPath(blocked)))
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("Rapid incoming requests apply in arrival order")
+    func incomingRequestsKeepArrivalOrder() async throws {
+        let urlA = try makeQuarantinedFile()
+        let urlB = try makeQuarantinedFile()
+        defer {
+            try? FileManager.default.removeItem(at: urlA)
+            try? FileManager.default.removeItem(at: urlB)
+        }
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, _ in true },
+            tokenStore: try makeTokenStore()
+        )
+
+        let first = model.handleIncomingRequest(
+            IncomingRequest(urls: [urlA], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        let second = model.handleIncomingRequest(
+            IncomingRequest(urls: [urlB], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        await first.value
+        await second.value
+
+        #expect(model.items.map(\.url) == [urlB, urlA])
+        try await waitUntil { model.items.allSatisfy { $0.status != .processing } }
+    }
+
+    @Test("quitAfter from a warm request does not enter service mode or terminate")
+    func incomingRequestSquashesQuitAfterWhenWarm() async throws {
+        let url = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = try makeTokenStore()
+        let token = try #require(store.issueToken())
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            terminate: { recorder.terminateCount += 1 },
+            tokenStore: store
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: true, token: token),
+            isColdLaunch: false
+        ).value
+
+        #expect(model.serviceMode == nil)
+        try await waitUntil { model.items.first?.status == .clean }
+        #expect(recorder.terminateCount == 0)
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("A queued request's token is consumed on arrival, not when the queue drains")
+    func incomingRequestConsumesTokenOnArrival() async throws {
+        let url = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = try makeTokenStore()
+        let token = try #require(store.issueToken())
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: store
+        )
+
+        // Park the queue behind a slow predecessor so timing is observable.
+        model.incomingRequestTask = Task { try? await Task.sleep(for: .milliseconds(200)) }
+        let task = model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: false, token: token),
+            isColdLaunch: false
+        )
+
+        // Already consumed: presenting the same token again must fail.
+        #expect(store.consumeToken(token) == false)
+        await task.value
+        try await waitUntil { model.items.first?.status == .clean }
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("Clear cancels a queued incoming request before it can run")
+    func clearCancelsQueuedIncomingRequest() async throws {
+        let url = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: try makeTokenStore()
+        )
+
+        model.incomingRequestTask = Task { try? await Task.sleep(for: .milliseconds(200)) }
+        let task = model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        model.clear()
+        await task.value
+
+        #expect(model.items.isEmpty)
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("Clear cancels every queued request, not only the newest")
+    func clearCancelsEveryQueuedRequest() async throws {
+        let first = try makeQuarantinedFile()
+        let second = try makeQuarantinedFile()
+        defer {
+            try? FileManager.default.removeItem(at: first)
+            try? FileManager.default.removeItem(at: second)
+        }
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: try makeTokenStore()
+        )
+
+        // Park the chain so both requests are still queued when clear() lands.
+        model.incomingRequestTask = Task { try? await Task.sleep(for: .milliseconds(200)) }
+        let earlier = model.handleIncomingRequest(
+            IncomingRequest(urls: [first], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        let later = model.handleIncomingRequest(
+            IncomingRequest(urls: [second], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        model.clear()
+        await earlier.value
+        await later.value
+
+        #expect(model.items.isEmpty)
+        #expect(recorder.confirmedKinds.isEmpty)
+    }
+
+    @Test("An empty cold-launch request does not quit while a later request is queued")
+    func emptyColdLaunchDefersToQueuedSuccessor() async throws {
+        let missing = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let real = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: real) }
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) },
+            tokenStore: try makeTokenStore()
+        )
+
+        let empty = model.handleIncomingRequest(
+            IncomingRequest(urls: [missing], action: .remove, quitAfter: true, token: nil),
+            isColdLaunch: true
+        )
+        let successor = model.handleIncomingRequest(
+            IncomingRequest(urls: [real], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        await empty.value
+        await successor.value
+
+        #expect(recorder.terminateCount == 0)
+        try await waitUntil { model.items.first?.status == .clean }
+    }
+
+    @Test("A URL the parser rejects still honors a cold launch's quit contract")
+    func rejectedColdLaunchRequestTerminates() throws {
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            terminate: { recorder.terminateCount += 1 },
+            tokenStore: try makeTokenStore()
+        )
+        let quitting = try #require(URL(string: "smuggler://process?path=relative/a.app&quitAfter=true"))
+        let staying = try #require(URL(string: "smuggler://process?path=relative/a.app"))
+
+        model.rejectIncomingRequest(staying, isColdLaunch: true)
+        model.rejectIncomingRequest(quitting, isColdLaunch: false)
+        #expect(recorder.terminateCount == 0)
+
+        model.rejectIncomingRequest(quitting, isColdLaunch: true)
+        #expect(recorder.terminateCount == 1)
+    }
+
+    @Test("A cold-launch quitAfter request with no processable paths still quits")
+    func coldLaunchQuitAfterEmptyRequestTerminates() async throws {
+        let missing = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            terminate: { recorder.terminateCount += 1 },
+            tokenStore: try makeTokenStore()
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [missing], action: .remove, quitAfter: true, token: nil),
+            isColdLaunch: true
+        ).value
+
+        #expect(recorder.terminateCount == 1)
+        #expect(model.items.isEmpty)
+    }
+
+    @Test("A cold-launch tokened remove processes silently, notifies, and terminates")
+    func coldLaunchTokenedRemoveRunsToTermination() async throws {
+        let url = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = try makeTokenStore()
+        let token = try #require(store.issueToken())
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) },
+            tokenStore: store
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [url], action: .remove, quitAfter: true, token: token),
+            isColdLaunch: true
+        ).value
+
+        try await waitUntil { recorder.terminateCount > 0 }
+        #expect(recorder.confirmedKinds.isEmpty)
+        #expect(model.items.first?.status == .clean)
+        #expect(recorder.notifiedBatches.count == 1)
+    }
+
+    @Test("An untrusted symlink alias into a blocked tree skips the dialog and surfaces a refusal")
+    func symlinkAliasSkipsConfirmation() async throws {
+        let link = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(
+            at: link, withDestinationURL: URL(filePath: "/usr/bin"))
+        defer { try? FileManager.default.removeItem(at: link) }
+        let alias = link.appending(path: "true")
+
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            tokenStore: try makeTokenStore()
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(urls: [alias], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        ).value
+
+        try await waitUntil { !model.items.isEmpty && model.items[0].status != .processing }
+        #expect(recorder.confirmedKinds.isEmpty)
+        #expect(model.items[0].status == .error(.blockedPath(alias)))
+    }
+
+    @Test("A warm open request for an in-flight URL opens it once it finishes")
+    func warmOpenRequestAdoptsInFlightItem() async throws {
+        let url = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .milliseconds(300),
+            confirm: { urls, kind in
+                recorder.confirmedURLs = urls
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            open: { recorder.openedURLs = $0 }
+        )
+
+        let firstRun = Task { await model.process(urls: [url]) }
+        try await waitUntil { !model.items.isEmpty }
+        model.handleServiceURLs([url], action: .open, quitAfter: false)
+
+        try await waitUntil { recorder.openedURLs == [url] }
+        #expect(model.items.count == 1)
+        #expect(recorder.confirmedKinds == [.open])
+        await firstRun.value
     }
 }

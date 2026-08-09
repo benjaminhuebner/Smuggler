@@ -1,6 +1,19 @@
 import AppKit
 import SwiftUI
 
+// MARK: - Finishing-Fill Preference
+
+// Rows report their finishing fill upward so summary UI can hold its
+// processing presentation until every bar has visibly landed — real
+// completion leads the fill by its duration.
+nonisolated struct FinishingFillCountKey: PreferenceKey {
+    static let defaultValue = 0
+
+    static func reduce(value: inout Int, nextValue: () -> Int) {
+        value += nextValue()
+    }
+}
+
 // MARK: - FileRowView
 
 struct FileRowView: View {
@@ -22,6 +35,32 @@ struct FileRowView: View {
 
     private var isFinished: Bool { item.status != .processing }
 
+    // A completed run sprints the bar to full before it leaves — a bar vanishing
+    // mid-crawl reads as broken. Derived, never latched: a flag written from
+    // .onChange lands a pass after the terminal status and flashes the result.
+    private var isFinishingFill: Bool {
+        isFinished && completedWithoutErrors && animatedProgress > 0 && !reduceMotion
+    }
+
+    // All visual state reads this lagged status: while the finishing fill runs,
+    // the row keeps presenting as processing so checkmark and success text
+    // cannot appear before the bar reaches full.
+    private var displayStatus: FileStatus {
+        isFinishingFill ? .processing : item.status
+    }
+
+    private var showsProgressBar: Bool { displayStatus == .processing }
+
+    // Accessibility follows the same lagged status as the visuals, or VoiceOver
+    // would read "Removing quarantine…" out of a row it has already collapsed.
+    private var presentsAsFinished: Bool { !showsProgressBar }
+
+    // .partialSuccess is excluded: a bar sprinting to full would claim a success
+    // the run didn't have.
+    private var completedWithoutErrors: Bool {
+        item.status == .clean || item.status == .alreadyClean
+    }
+
     private var displayProgress: Double {
         isFinished ? 1.0 : animatedProgress
     }
@@ -39,11 +78,10 @@ struct FileRowView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                if item.status == .processing {
+                if showsProgressBar {
                     ProgressView(value: displayProgress)
                         .progressViewStyle(.linear)
                         .tint(Color.smugglerYellow)
-                        .animation(.easeInOut(duration: 0.2), value: displayProgress)
                 } else if style == .list {
                     Text(statusDescription)
                         .font(.caption)
@@ -58,12 +96,13 @@ struct FileRowView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: showsProgressBar)
 
             Spacer()
 
             statusLabel
                 .contentTransition(.symbolEffect(.replace))
-                .animation(.easeInOut(duration: 0.3), value: item.status)
+                .animation(.easeInOut(duration: 0.3), value: displayStatus)
 
             if item.status == .processing, let onCancel {
                 Button {
@@ -94,13 +133,14 @@ struct FileRowView: View {
             isHovered = hovering
         }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .preference(key: FinishingFillCountKey.self, value: isFinishingFill ? 1 : 0)
         // Terminal rows collapse to a single VoiceOver stop reading "name, status";
         // the error popover stays reachable as a named action. Processing rows keep
         // their children so the progress bar and cancel control remain individual stops.
-        .accessibilityElement(children: isFinished ? .ignore : .contain)
-        .accessibilityLabel(isFinished ? "\(item.name), \(statusText)" : item.name)
+        .accessibilityElement(children: presentsAsFinished ? .ignore : .contain)
+        .accessibilityLabel(presentsAsFinished ? "\(item.name), \(statusText)" : item.name)
         .accessibilityActions {
-            if isFinished, item.status.hasErrors {
+            if presentsAsFinished, item.status.hasErrors {
                 Button(
                     String(localized: "Show error details", comment: "Accessibility action: open the error popover")
                 ) {
@@ -116,31 +156,53 @@ struct FileRowView: View {
             }
         }
         .task(id: item.id) {
-            // Load icon off the main thread to avoid blocking during bulk drops
-            let path = item.url.path(percentEncoded: false)
-            let loadedIcon = await Task.detached(priority: .userInitiated) {
-                NSWorkspace.shared.icon(forFile: path)
-            }.value
-            icon = loadedIcon
-
-            // Ease toward 0.9 (not 1.0) while processing so the bar shows
-            // motion without falsely signalling completion. The duration is
-            // long with ease-out so it decelerates and lingers near the end.
-            guard item.status == .processing else { return }
+            icon = await Self.loadIcon(forPath: item.url.path(percentEncoded: false))
+        }
+        // Re-dropping a finished file reuses the row identity, so the ease must
+        // key on the status transition — a task keyed on the row would not rerun
+        // and the bar would resume at its previous value.
+        .task(id: isFinished) {
+            if isFinished {
+                // Zeroing the progress is what ends the fill; cancelled, failed
+                // and partial runs never held it, so they drop the bar at once.
+                if isFinishingFill {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    guard !Task.isCancelled else { return }
+                }
+                animatedProgress = 0
+                return
+            }
+            // Ease toward 0.9 (not 1.0) while processing so the bar shows motion
+            // without falsely signalling completion; the long ease-out lingers near the end.
             if reduceMotion {
                 animatedProgress = 0.9
-            } else {
-                withAnimation(.easeOut(duration: 8.0)) {
-                    animatedProgress = 0.9
-                }
+                return
+            }
+            // The bar's AppKit backing ignores transaction animations and smooths
+            // any value jump over ~0.5s — withAnimation's slow fill arrived almost
+            // instantly. Stepped values let that smoothing interpolate an 8s ease.
+            let start = ContinuousClock.now
+            while !Task.isCancelled {
+                let fraction = min(1.0, (ContinuousClock.now - start) / .seconds(8))
+                animatedProgress = 0.9 * (1 - pow(1 - fraction, 3))
+                guard fraction < 1 else { return }
+                try? await Task.sleep(for: .milliseconds(200))
             }
         }
+    }
+
+    // MARK: - Icon Loading
+
+    // Icon lookup hits the disk; running it inline would stall row rendering on bulk drops.
+    @concurrent
+    private nonisolated static func loadIcon(forPath path: String) async -> NSImage {
+        NSWorkspace.shared.icon(forFile: path)
     }
 
     // MARK: - Status Description (subtitle in list style)
 
     private var statusDescription: String {
-        switch item.status {
+        switch displayStatus {
         case .processing:
             String(localized: "Processing…", comment: "File row status: currently processing")
         case .clean:
@@ -162,7 +224,7 @@ struct FileRowView: View {
 
     @ViewBuilder
     private var statusLabel: some View {
-        switch item.status {
+        switch displayStatus {
         case .processing:
             EmptyView()
 
@@ -245,29 +307,29 @@ struct FileRowView: View {
     private static let popoverErrorLimit = 20
 
     private func partialSuccessPopoverContent(cleaned: Int, errors: [QuarantineFileError]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let (shownErrors, hiddenCount) = errors.cappedPrefix(Self.popoverErrorLimit)
+        return VStack(alignment: .leading, spacing: 8) {
             Text(
                 String(
-                    localized: "\(cleaned) files freed from quarantine.\n\(errors.count) files could not be processed:",
-                    comment: "Error popover: partial success details, followed by the failing file names")
+                    localized: "\(cleaned) files freed from quarantine.\n\(errors.count) items could not be processed:",
+                    comment: "Error popover: partial success details, followed by the failing item names")
             )
             .font(.callout)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(errors.prefix(Self.popoverErrorLimit)) { fileError in
+                    ForEach(shownErrors) { fileError in
                         Text(fileError.url.lastPathComponent)
                             .font(.caption)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .help(fileError.error.errorDescription ?? "")
                     }
-                    if errors.count > Self.popoverErrorLimit {
-                        let more = errors.count - Self.popoverErrorLimit
+                    if hiddenCount > 0 {
                         Text(
                             String(
-                                localized: "and \(more) more",
-                                comment: "Confirm dialog: suffix when the path list is truncated")
+                                localized: "and \(hiddenCount) more files",
+                                comment: "Error popover: suffix when the failing-file list is truncated")
                         )
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -284,7 +346,7 @@ struct FileRowView: View {
     // MARK: - Status Text (compact style)
 
     private var statusText: String {
-        switch item.status {
+        switch displayStatus {
         case .processing:
             String(localized: "Removing quarantine…", comment: "Compact status: processing")
         case .clean:
@@ -306,7 +368,7 @@ struct FileRowView: View {
 // MARK: - Previews
 
 #Preview("List Style") {
-    let url = URL(fileURLWithPath: "/Applications/Safari.app")
+    let url = URL(filePath: "/Applications/Safari.app")
     List {
         FileRowView(item: FileItem(url: url, status: .processing))
         FileRowView(item: FileItem(url: url, status: .clean))
@@ -327,7 +389,7 @@ struct FileRowView: View {
 }
 
 #Preview("Compact Style") {
-    let url = URL(fileURLWithPath: "/Applications/Safari.app")
+    let url = URL(filePath: "/Applications/Safari.app")
     VStack(spacing: 0) {
         FileRowView(item: FileItem(url: url, status: .processing), style: .compact)
         Divider().padding(.leading, 44)
