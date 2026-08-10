@@ -144,7 +144,7 @@ struct DropZoneView: View {
 
     private static let frameRadius: CGFloat = 16
     private static let tapeWidth: CGFloat = 10
-    private static let topRunHeight = tapeWidth + 1
+    private static let runThickness = tapeWidth + 1
 
     // Form carries the metaphor, color carries the action: the hatching reads as
     // barrier tape in either state, and only the drag turns it into the icon's
@@ -167,13 +167,19 @@ struct DropZoneView: View {
         RoundedRectangle(cornerRadius: Self.frameRadius, style: .continuous)
     }
 
-    // Sized to a real drop, which is quick: a slower tear is still mid-rip when
-    // the file lands, and the tape then re-seals over the arriving results.
-    // Re-sealing is the undo of an action nobody took, so it gets less time.
-    private static func tearMotion(_ tearing: Bool) -> Animation {
-        tearing
-            ? .timingCurve(0.2, 0, 0.1, 1, duration: 0.26)
-            : .timingCurve(0.3, 0, 0.2, 1, duration: 0.16)
+    // Tape under tension snaps: each half whips past its rest angle and wobbles
+    // once, and all four run on different clocks — a symmetric rip reads as a
+    // mechanism. Re-sealing is the undo of an action nobody took: plain, quick.
+    private static func tearMotion(
+        _ tearing: Bool, run: TornTapeHalf.Run, end: TornTapeHalf.End
+    ) -> Animation {
+        guard tearing else { return .timingCurve(0.3, 0, 0.2, 1, duration: 0.16) }
+        switch (run, end) {
+        case (.leading, .top): return .spring(duration: 0.3, bounce: 0.45)
+        case (.leading, .bottom): return .spring(duration: 0.37, bounce: 0.32)
+        case (.trailing, .top): return .spring(duration: 0.34, bounce: 0.38)
+        case (.trailing, .bottom): return .spring(duration: 0.4, bounce: 0.28)
+        }
     }
 
     private func tapeBand() -> some View {
@@ -200,63 +206,102 @@ struct DropZoneView: View {
         }
     }
 
-    // A tear travels. The run splits at a moving front: behind it the tape is
-    // already off and curling, ahead of it the tape is still stuck flat — which
-    // is what separates a rip from a strip that simply slides away.
+    // Barrier tape gives way where the load pushes through: both side runs snap
+    // at mid-height and the four freed halves stay hanging from the corners,
+    // swung into the zone — a barrier broken open, not a strip tidied away.
     private var dropZoneBackground: some View {
-        let tear = TornEdge(depth: Self.topRunHeight)
-        let torn: CGFloat = isTargeted ? 1 : 0
-        return GeometryReader { proxy in
-            let width = max(1, proxy.size.width)
-            // The hinge rides the tear front: the freed end is the one being held
-            // up, and the tape touches back down exactly where it is still stuck.
-            let hinge = UnitPoint(x: torn, y: min(1, Self.topRunHeight / max(1, proxy.size.height)))
+        GeometryReader { proxy in
+            let height = max(1, proxy.size.height)
+            // Two different heights, both slightly off-centre: snaps that mirror
+            // or sit dead-centre read as designed, not torn.
+            let leftBreakY = height * 0.47
+            let rightBreakY = height * 0.53
+            let runLength = max(0, height - 2 * Self.frameRadius)
 
             ZStack {
                 bandShape
                     .fill(Color.smugglerYellow.opacity(0.05))
                     .opacity(isTargeted ? 1 : 0)
 
+                // Top, bottom and corners stay stuck — only the side runs tear.
                 tapeBand()
                     .mask {
                         Rectangle()
-                            .overlay { tear.blendMode(.destinationOut) }
+                            .overlay(alignment: .leading) { sideRunCutout(length: runLength) }
+                            .overlay(alignment: .trailing) { sideRunCutout(length: runLength) }
                             .compositingGroup()
                     }
 
-                // Still stuck, ahead of the front.
-                tapeBand()
-                    .mask { tear }
-                    .mask {
-                        Rectangle()
-                            .frame(width: width * (1 - torn))
-                            .frame(width: width, alignment: .trailing)
-                    }
-
-                // Already torn free, hinged on the end the rip started from. The
-                // only shadow in the interface, and not decoration: this strip is
-                // genuinely off the surface while it lifts.
-                tapeBand()
-                    .mask { tear }
-                    .mask {
-                        Rectangle()
-                            .frame(width: width * torn)
-                            .frame(width: width, alignment: .leading)
-                    }
-                    .shadow(color: .black.opacity(0.45 * torn), radius: 9 * torn, y: 7 * torn)
-                    .rotation3DEffect(
-                        .degrees(-56 * torn),
-                        axis: (x: 1, y: 0, z: 0),
-                        anchor: hinge,
-                        perspective: 0.6
-                    )
-                    .rotationEffect(.degrees(-6 * torn), anchor: hinge)
-                    .opacity(1 - torn)
+                tornHalf(run: .leading, end: .top, breakY: leftBreakY, in: proxy.size)
+                tornHalf(run: .leading, end: .bottom, breakY: leftBreakY, in: proxy.size)
+                tornHalf(run: .trailing, end: .top, breakY: rightBreakY, in: proxy.size)
+                tornHalf(run: .trailing, end: .bottom, breakY: rightBreakY, in: proxy.size)
             }
         }
-        .animation(reduceMotion ? nil : Self.tearMotion(isTargeted), value: isTargeted)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isTargeted)
         .padding(20)
         .accessibilityHidden(true)
+    }
+
+    private func sideRunCutout(length: CGFloat) -> some View {
+        Rectangle()
+            .frame(width: Self.runThickness, height: length)
+            .blendMode(.destinationOut)
+    }
+
+    // Each half hangs from the corner it is still stuck at: it recoils toward it
+    // (snapped tape contracts), lifts its torn end off the surface, and swings
+    // into the zone under the only shadow in the interface — genuinely airborne.
+    private func tornHalf(
+        run: TornTapeHalf.Run, end: TornTapeHalf.End, breakY: CGFloat, in size: CGSize
+    ) -> some View {
+        let torn: CGFloat = isTargeted ? 1 : 0
+        let width = max(1, size.width)
+        let height = max(1, size.height)
+        let hinge = UnitPoint(
+            x: run == .leading
+                ? Self.runThickness / 2 / width
+                : 1 - Self.runThickness / 2 / width,
+            y: end == .top
+                ? Self.frameRadius / height
+                : 1 - Self.frameRadius / height)
+        // Swing is always inward (the load arrives from outside), lift always
+        // raises the torn end toward the viewer; magnitudes differ per piece so
+        // the four halves don't move in lockstep.
+        let droop: Double
+        let lift: Double
+        switch (run, end) {
+        case (.leading, .top):
+            droop = -11
+            lift = 32
+        case (.leading, .bottom):
+            droop = 9
+            lift = -28
+        case (.trailing, .top):
+            droop = 8.5
+            lift = 34
+        case (.trailing, .bottom):
+            droop = -12
+            lift = -26
+        }
+        return tapeBand()
+            .mask {
+                TornTapeHalf(
+                    run: run, end: end, breakY: breakY,
+                    cornerInset: Self.frameRadius, thickness: Self.runThickness)
+            }
+            .shadow(color: .black.opacity(0.4 * torn), radius: 8 * torn, y: 6 * torn)
+            .scaleEffect(x: 1, y: 1 - 0.06 * torn, anchor: hinge)
+            .rotation3DEffect(
+                .degrees(lift * torn),
+                axis: (x: 1, y: 0, z: 0),
+                anchor: hinge,
+                perspective: 0.55
+            )
+            .rotationEffect(.degrees(droop * torn), anchor: hinge)
+            .animation(
+                reduceMotion ? nil : Self.tearMotion(isTargeted, run: run, end: end),
+                value: isTargeted)
     }
 }
 
@@ -319,26 +364,44 @@ private struct HazardStripes: View {
     }
 }
 
-// Deterministic jitter, never random: a Shape re-rolling each layout pass would
-// crawl during a resize. Never negative either — a tear swinging above the line
-// strands slivers of band that read as debris instead of as a torn edge.
-private struct TornEdge: Shape {
-    let depth: CGFloat
+// Both halves of a run share one break profile, so at rest they tile back with
+// no seam. Deterministic, never random: re-rolling each layout pass would crawl
+// during a resize. The long excursions leave a frayed strand on each half.
+private struct TornTapeHalf: Shape {
+    enum Run {
+        case leading
+        case trailing
+    }
+    enum End {
+        case top
+        case bottom
+    }
 
-    private static let jitter: [CGFloat] = [0, 2.5, 1, 3.5, 0.5, 2, 0, 2.5, 1.5, 3, 0.5, 2]
+    let run: Run
+    let end: End
+    let breakY: CGFloat
+    let cornerInset: CGFloat
+    let thickness: CGFloat
+
+    private static let profile: [CGFloat] = [0.5, -2, 1.5, 8, -0.5, 2.5, -7.5, -1, 3.5, -3, 1.5, 0]
 
     func path(in rect: CGRect) -> Path {
+        let steps = Self.profile.count - 1
+        let outerX = run == .leading ? rect.minX : rect.maxX
+        let innerX = run == .leading ? rect.minX + thickness : rect.maxX - thickness
+        let stuckY = end == .top ? rect.minY + cornerInset : rect.maxY - cornerInset
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        let steps = Self.jitter.count - 1
-        for index in stride(from: steps, through: 0, by: -1) {
-            let fraction = CGFloat(index) / CGFloat(steps)
+        path.move(to: CGPoint(x: outerX, y: stuckY))
+        for index in 0...steps {
+            // The trailing run walks the profile backwards, so the two tears
+            // fray differently instead of mirroring each other.
+            let offset = run == .leading ? Self.profile[index] : Self.profile[steps - index]
             path.addLine(
                 to: CGPoint(
-                    x: rect.minX + rect.width * fraction,
-                    y: rect.minY + depth + Self.jitter[index]))
+                    x: outerX + (innerX - outerX) * CGFloat(index) / CGFloat(steps),
+                    y: breakY + offset))
         }
+        path.addLine(to: CGPoint(x: innerX, y: stuckY))
         path.closeSubpath()
         return path
     }
