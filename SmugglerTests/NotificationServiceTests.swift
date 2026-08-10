@@ -16,6 +16,10 @@ struct NotificationServiceTests {
         FileItem(url: URL(filePath: path), status: .error(.permissionDenied(URL(filePath: path))))
     }
 
+    private func alreadyCleanItem(_ path: String) -> FileItem {
+        FileItem(url: URL(filePath: path), status: .alreadyClean)
+    }
+
     private func cancelledItem(_ path: String) -> FileItem {
         FileItem(url: URL(filePath: path), status: .cancelled)
     }
@@ -107,12 +111,38 @@ struct NotificationServiceTests {
         #expect(cancelledTitle != failureTitle)
     }
 
-    @Test("An alreadyClean batch uses the success copy")
-    func alreadyCleanUsesSuccessCopy() {
-        let alreadyClean = [FileItem(url: URL(filePath: "/tmp/a.app"), status: .alreadyClean)]
-        let successTitle = NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title
+    @Test("An alreadyClean batch does not claim anything was freed")
+    func alreadyCleanIsNotReportedAsFreed() {
+        let alreadyClean = (0..<4).map { alreadyCleanItem("/tmp/\($0).app") }
+        let (title, body) = NotificationService.buildContent(for: alreadyClean)
 
-        #expect(NotificationService.buildContent(for: alreadyClean).title == successTitle)
+        #expect(title != NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title)
+        #expect(title != NotificationService.buildContent(for: [failedItem("/tmp/a.app")]).title)
+        #expect(body.contains("4"))
+    }
+
+    // The status bar counts only rows that actually had something removed, and a
+    // notification counting the others contradicts those rows.
+    @Test("alreadyClean rows do not count toward the freed total")
+    func alreadyCleanRowsAreNotFreed() {
+        let items =
+            (0..<4).map { alreadyCleanItem("/tmp/\($0).app") }
+            + (0..<6).map { failedItem("/tmp/f\($0).app") }
+        let (title, body) = NotificationService.buildContent(for: items)
+
+        #expect(title == NotificationService.buildContent(for: [failedItem("/tmp/a.app")]).title)
+        #expect(!body.contains("4"))
+        #expect(body.contains("6"))
+    }
+
+    @Test("A batch that freed some and found the rest already free reports both counts")
+    func freedAndAlreadyFreeReportBothCounts() {
+        let items = [cleanItem("/tmp/a.app"), alreadyCleanItem("/tmp/b.app"), alreadyCleanItem("/tmp/c.app")]
+        let (title, body) = NotificationService.buildContent(for: items)
+
+        #expect(title == NotificationService.buildContent(for: [cleanItem("/tmp/a.app")]).title)
+        #expect(body.contains("1"))
+        #expect(body.contains("2"))
     }
 
     @Test("Empty item list is safe and returns a non-empty title")
@@ -195,5 +225,32 @@ struct FileStatusTests {
         #expect(FileStatus.cancelled.hasErrors == false)
         #expect(Self.partial.hasErrors == true)
         #expect(FileStatus.error(.fileNotFound(URL(filePath: "/tmp/x"))).hasErrors == true)
+    }
+
+    @Test("didFreeSomething for each status")
+    func didFreeSomething() {
+        #expect(FileStatus.processing.didFreeSomething == false)
+        #expect(FileStatus.clean.didFreeSomething == true)
+        #expect(FileStatus.alreadyClean.didFreeSomething == false)
+        #expect(FileStatus.cancelled.didFreeSomething == false)
+        #expect(Self.partial.didFreeSomething == true)
+        #expect(FileStatus.partialSuccess(cleaned: 0, errors: []).didFreeSomething == false)
+        #expect(FileStatus.error(.fileNotFound(URL(filePath: "/tmp/x"))).didFreeSomething == false)
+    }
+
+    @Test("The batch counts a window and a notification share")
+    func batchCounts() {
+        let items = [
+            FileItem(url: URL(filePath: "/tmp/a"), status: .clean),
+            FileItem(url: URL(filePath: "/tmp/b"), status: .alreadyClean),
+            FileItem(url: URL(filePath: "/tmp/c"), status: Self.partial),
+            FileItem(url: URL(filePath: "/tmp/d"), status: .error(.fileNotFound(URL(filePath: "/tmp/d")))),
+            FileItem(url: URL(filePath: "/tmp/e"), status: .cancelled),
+        ]
+
+        #expect(items.freedCount == 2)
+        #expect(items.alreadyFreeCount == 1)
+        #expect(items.failedCount == 2)
+        #expect(items.attemptedCount == 4)
     }
 }

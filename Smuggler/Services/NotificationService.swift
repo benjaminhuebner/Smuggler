@@ -25,6 +25,22 @@ enum NotificationService {
     // MARK: - Posting
 
     nonisolated static func postResult(items: [FileItem]) async {
+        let (title, body) = buildContent(for: items)
+        await post(title: title, body: body)
+    }
+
+    // The paths never reached the app, so there is no batch to summarize — without
+    // this a failed handover would end a headless session in silence.
+    nonisolated static func postRequestFailure() async {
+        await post(
+            title: String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"),
+            body: String(
+                localized: "The selected items could not be read. Try again from Finder.",
+                comment: "Notification body: the sender's item list never arrived")
+        )
+    }
+
+    nonisolated private static func post(title: String, body: String) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
 
@@ -35,8 +51,6 @@ enum NotificationService {
             logger.info("Notifications not authorized, skipping")
             return
         }
-
-        let (title, body) = buildContent(for: items)
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -62,13 +76,29 @@ enum NotificationService {
         guard !items.isEmpty else {
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), "")
         }
-        // Cancelled rows count toward nothing: a batch the user stopped themselves
-        // must not read as one where the remaining items failed.
-        let successCount = items.count(where: \.status.isSuccessful)
-        let errorCount = items.count(where: \.status.hasErrors)
-        let attemptedCount = items.count { $0.status.isSuccessful || $0.status.hasErrors }
+        // "Freed" means something was actually taken off: counting a file that was
+        // never quarantined would tell a headless user work happened that didn't.
+        let freedCount = items.freedCount
+        let alreadyFreeCount = items.alreadyFreeCount
+        let errorCount = items.failedCount
+        let attemptedCount = items.attemptedCount
 
-        if successCount == 0 {
+        if freedCount == 0, errorCount == 0, alreadyFreeCount > 0 {
+            let body =
+                alreadyFreeCount == 1
+                ? String(
+                    localized:
+                        "\(items.first(where: { $0.status == .alreadyClean })?.name ?? "") was not in quarantine.",
+                    comment: "Notification body: the single item had no quarantine to remove")
+                : String(
+                    localized: "\(alreadyFreeCount) items were not in quarantine.",
+                    comment: "Notification body: no item had quarantine to remove")
+            return (
+                String(localized: "Nothing to Remove", comment: "Notification title: nothing had quarantine"), body
+            )
+        }
+
+        if freedCount == 0 {
             guard let firstFailed = items.first(where: \.status.hasErrors) else {
                 return (
                     String(localized: "Cancelled", comment: "Notification title: nothing processed"),
@@ -88,22 +118,29 @@ enum NotificationService {
             return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
         }
 
-        if errorCount == 0, let firstSuccess = items.first(where: \.status.isSuccessful) {
-            let body =
-                successCount == 1
-                ? String(
-                    localized: "\(firstSuccess.name) is ready to use.",
+        if errorCount == 0 {
+            let body: String
+            if alreadyFreeCount > 0 {
+                body = String(
+                    localized: "\(freedCount) freed, \(alreadyFreeCount) were not in quarantine.",
+                    comment: "Notification body: some freed, the rest had no quarantine")
+            } else if freedCount == 1 {
+                body = String(
+                    localized:
+                        "\(items.first(where: \.status.didFreeSomething)?.name ?? "") is ready to use.",
                     comment: "Notification body: single file success")
-                : String(
-                    localized: "\(successCount) items are ready to use.",
+            } else {
+                body = String(
+                    localized: "\(freedCount) items are ready to use.",
                     comment: "Notification body: multiple files success")
+            }
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), body)
         }
 
         return (
             String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"),
             String(
-                localized: "\(successCount) of \(attemptedCount) items cleaned. Some items had errors.",
+                localized: "\(freedCount) of \(attemptedCount) items freed. Some could not be processed.",
                 comment: "Notification body: partial success")
         )
     }

@@ -52,8 +52,44 @@ struct SmugglerApp: App {
                     openFolder?()
                 }
                 .keyboardShortcut("o", modifiers: [.shift, .command])
+
+                Divider()
+
+                // Views, not inline buttons: observation registers through a view
+                // body, and a command reading the model directly keeps whatever
+                // enablement it was built with.
+                CancelAllButton(appModel: appDelegate.appModel)
+                ClearAllButton(appModel: appDelegate.appModel)
             }
         }
+    }
+}
+
+// MARK: - File Menu Commands
+
+private struct CancelAllButton: View {
+    let appModel: AppModel
+
+    var body: some View {
+        Button("Cancel All") {
+            appModel.cancelAll()
+        }
+        .keyboardShortcut(".", modifiers: .command)
+        .disabled(!appModel.isProcessing)
+    }
+}
+
+private struct ClearAllButton: View {
+    let appModel: AppModel
+
+    var body: some View {
+        Button("Clear All") {
+            appModel.clear()
+        }
+        .keyboardShortcut(.delete, modifiers: .command)
+        // Withheld in service mode: clearing cancels the coordinator, and the
+        // session Finder launched would then never reach its quit.
+        .disabled(appModel.items.isEmpty || appModel.isProcessing || appModel.serviceMode != nil)
     }
 }
 

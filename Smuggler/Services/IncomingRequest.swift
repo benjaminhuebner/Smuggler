@@ -15,11 +15,22 @@ nonisolated enum ServiceAction: String, Sendable {
     case remove
 }
 
+// A handover that could not be read is its own outcome: served as an empty
+// selection it would be indistinguishable from a request with nothing to do,
+// and a headless session would quit without telling anyone.
+nonisolated enum RequestedURLs: Sendable {
+    case urls([URL])
+    case batchUnavailable
+}
+
 nonisolated struct IncomingRequest: Sendable {
     let urls: [URL]
     let action: ServiceAction
     let quitAfter: Bool
     let token: String?
+    // Set when the sender handed its paths over through the shared container
+    // instead of the URL; `urls` is then empty until the batch is read off-main.
+    var batchName: String?
 }
 
 nonisolated extension IncomingRequest {
@@ -34,13 +45,13 @@ nonisolated extension IncomingRequest {
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let queryItems = components?.queryItems ?? []
 
-        // Absolute paths only: URL(filePath:) resolves "" and relative values
-        // against the working directory — "/" for a LaunchServices launch — so
-        // a degenerate request would silently target the boot volume.
-        let paths = queryItems.filter { $0.name == "path" }
-            .compactMap(\.value)
-            .filter { $0.hasPrefix("/") }
-        guard !paths.isEmpty else {
+        // Parsing stays free of filesystem calls: it runs on the main actor as
+        // the request arrives, and the directory form is resolved off-main by
+        // the caller instead.
+        let urls = Self.fileURLs(fromPaths: queryItems.filter { $0.name == "path" }.compactMap(\.value))
+        // A batch stands in for the paths when the selection outgrew the URL.
+        let batchName = queryItems.first(where: { $0.name == "batch" })?.value
+        guard !urls.isEmpty || batchName != nil else {
             logger.warning("URL missing usable path parameter(s): \(url, privacy: .private)")
             return nil
         }
@@ -52,14 +63,43 @@ nonisolated extension IncomingRequest {
         }
 
         self.init(
-            // Parsing stays free of filesystem calls: it runs on the main actor as
-            // the request arrives, and the directory form is resolved off-main by
-            // the caller instead.
-            urls: paths.map { URL(filePath: $0, directoryHint: .inferFromPath).standardizedFileURL },
+            urls: urls,
             action: action,
             quitAfter: Self.requestsQuit(queryItems),
-            token: queryItems.first(where: { $0.name == "token" })?.value
+            token: queryItems.first(where: { $0.name == "token" })?.value,
+            batchName: batchName
         )
+    }
+
+    // Reading the batch is a file read, so it stays off the main actor alongside
+    // the existence filter rather than happening in the parser.
+    @concurrent
+    static func requestedURLs(
+        for request: IncomingRequest,
+        batchStore: ServiceBatchStore? = nil
+    ) async -> RequestedURLs {
+        guard let batchName = request.batchName else { return .urls(request.urls) }
+        // Built here rather than as a default argument, which Swift would evaluate
+        // in the caller's main-actor context — the group-container lookup is a
+        // synchronous round trip that can materialize the directory.
+        let store = batchStore ?? ServiceBatchStore()
+        let urls = Self.fileURLs(fromPaths: store.consume(batchName))
+        // A batch always carries at least one path, so nothing here means the
+        // handover failed — that is a different outcome from "the user picked
+        // nothing" and must not be served as an empty selection.
+        guard !urls.isEmpty else {
+            logger.error("Batch \(batchName, privacy: .public) yielded no usable paths")
+            return .batchUnavailable
+        }
+        return .urls(urls)
+    }
+
+    // Absolute paths only: URL(filePath:) resolves "" and relative values
+    // against the working directory — "/" for a LaunchServices launch — so
+    // a degenerate request would silently target the boot volume.
+    private static func fileURLs(fromPaths paths: [String]) -> [URL] {
+        paths.filter { $0.hasPrefix("/") }
+            .map { URL(filePath: $0, directoryHint: .inferFromPath).standardizedFileURL }
     }
 
     // Readable without a successful parse: a rejected URL still states whether its

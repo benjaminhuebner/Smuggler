@@ -59,6 +59,8 @@
 		EAEE000000000000000000B3 /* Exceptions for "Smuggler" folder in "SmugglerFinderExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Services/ServiceBatchStore.swift,
+				Services/ServiceDropDirectory.swift,
 				Services/ServiceTokenStore.swift,
 			);
 			target = EA33000000000000000000CC /* SmugglerFinderExtension */;

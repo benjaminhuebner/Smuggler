@@ -1,758 +1,1001 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "%@ is ready to use." : {
-      "comment" : "Notification body: single file success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ ist einsatzbereit."
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ belongs to macOS": {
+      "comment": "Error: path is in a protected system location",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ gehört zu macOS"
           }
         }
       }
     },
-    "%lld files freed from quarantine.\n%lld files could not be processed:" : {
-      "comment" : "Error popover: partial success details, followed by the failing file names",
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Dateien von Quarantäne befreit.\n%lld Dateien konnten nicht verarbeitet werden:"
+    "%@ can't be used": {
+      "comment": "Error: URL is not a valid file URL",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kann nicht verwendet werden"
           }
         }
       }
     },
-    "%lld files freed from quarantine.\n%lld items could not be processed:" : {
-      "comment" : "Error popover: partial success details, followed by the failing item names",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld files freed from quarantine.\n%2$lld items could not be processed:"
+    "%@ could not be changed": {
+      "comment": "Error: unexpected system error",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ konnte nicht geändert werden"
           }
         }
       }
     },
-    "%lld freed, %lld could not be processed" : {
-      "comment" : "File row status: partial success with counts",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld freigegeben, %lld konnten nicht verarbeitet werden"
+    "%@ could not be found": {
+      "comment": "Error: file does not exist",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wurde nicht gefunden"
           }
         }
       }
     },
-    "%lld freed, %lld failed" : {
-      "comment" : "Compact status: partial success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld freigegeben, %lld fehlgeschlagen"
+    "%@ is a link, not a file": {
+      "comment": "Error: the item is a symbolic link",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ist eine Verknüpfung, keine Datei"
           }
         }
       }
     },
-    "%lld items are ready to use." : {
-      "comment" : "Notification body: multiple files success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Elemente sind einsatzbereit."
+    "%@ is ready to use.": {
+      "comment": "Notification body: single file success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ist einsatzbereit."
           }
         }
       }
     },
-    "%lld items freed" : {
-      "comment" : "Status bar: multiple items freed",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Elemente freigegeben"
+    "%@ took too long": {
+      "comment": "Error: operation took too long",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat zu lange gedauert"
           }
         }
       }
     },
-    "%lld of %lld items cleaned. Some items had errors." : {
-      "comment" : "Notification body: partial success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld von %lld Elementen bearbeitet. Einige Elemente hatten Fehler."
+    "%@ was not in quarantine.": {
+      "comment": "Notification body: the single item had no quarantine to remove",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ war nicht in Quarantäne."
           }
         }
       }
     },
-    "1 item freed" : {
-      "comment" : "Status bar: exactly one item freed",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 Element freigegeben"
+    "%lld already free, %lld failed": {
+      "comment": "Status bar: nothing freed, some had no quarantine, some failed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld bereits frei, %lld fehlgeschlagen"
           }
         }
       }
     },
-    "All items cancelled" : {
-      "comment" : "Status bar: all items were cancelled",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Elemente abgebrochen"
+    "%lld freed, %lld already free": {
+      "comment": "Status bar: some freed, some had no quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld freigegeben, %lld bereits frei"
           }
         }
       }
     },
-    "Already clean" : {
-      "comment" : "Compact status: had no quarantine",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bereits sauber"
+    "%lld freed, %lld could not be processed": {
+      "comment": "File row status: partial success with counts",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld freigegeben, %lld nicht verarbeitet"
           }
         }
       }
     },
-    "Already clean — no quarantine present" : {
-      "comment" : "File row status: had no quarantine",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bereits sauber – keine Quarantäne vorhanden"
+    "%lld freed, %lld failed": {
+      "comment": "Compact status: partial success\nStatus bar: mixed result",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld freigegeben, %lld fehlgeschlagen"
           }
         }
       }
     },
-    "An error occurred" : {
-      "comment" : "Fallback error message",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Fehler ist aufgetreten"
+    "%lld freed, %lld were not in quarantine.": {
+      "comment": "Notification body: some freed, the rest had no quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld freigegeben, %lld waren nicht in Quarantäne."
           }
         }
       }
     },
-    "and %lld more" : {
-      "comment" : "Confirm dialog: suffix when the path list is truncated",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "und %lld weitere"
+    "%lld items are ready to use.": {
+      "comment": "Notification body: multiple files success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte sind einsatzbereit."
           }
         }
       }
     },
-    "and %lld more files" : {
-      "comment" : "Error popover: suffix when the failing-file list is truncated",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "und %lld weitere Dateien"
+    "%lld items could not be processed:": {
+      "comment": "Error popover: several items failed, followed by their names",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte konnten nicht verarbeitet werden:"
           }
         }
       }
     },
-    "and %lld more items" : {
-      "comment" : "Service window: summary row when several items are hidden by the row cap",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "und %lld weitere Elemente"
+    "%lld items freed": {
+      "comment": "Status bar: several items freed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte freigegeben"
           }
         }
       }
     },
-    "and 1 more item" : {
-      "comment" : "Service window: summary row when one item is hidden by the row cap",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "und 1 weiteres Element"
+    "%lld items freed from quarantine.": {
+      "comment": "Error popover: several items were freed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte freigegeben."
           }
         }
       }
     },
-    "Cancel" : {
-      "comment" : "Confirm dialog: cancel button",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abbrechen"
+    "%lld items were not in quarantine.": {
+      "comment": "Notification body: no item had quarantine to remove",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte waren nicht in Quarantäne."
           }
         }
       }
     },
-    "Cancel All" : {
-      "comment" : "Button: cancel all in-flight items",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle abbrechen"
+    "%lld of %lld items freed. Some could not be processed.": {
+      "comment": "Notification body: partial success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld von %lld Objekten freigegeben. Einige konnten nicht verarbeitet werden."
           }
         }
       }
     },
-    "Cancel all in-flight items" : {
-      "comment" : "Help tag for the Cancel All button",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle laufenden Vorgänge abbrechen"
+    "1 item could not be processed:": {
+      "comment": "Error popover: exactly one item failed, followed by its name",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Objekt konnte nicht verarbeitet werden:"
           }
         }
       }
     },
-    "Cancel processing" : {
-      "comment" : "Accessibility label: cancel button on a row",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verarbeitung abbrechen"
+    "1 item freed": {
+      "comment": "Status bar: exactly one item freed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Objekt freigegeben"
           }
         }
       }
     },
-    "Cancelled" : {
-      "comment" : "Compact status: cancelled\nNotification title: nothing processed",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abgebrochen"
+    "1 item freed from quarantine.": {
+      "comment": "Error popover: exactly one item was freed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Objekt freigegeben."
           }
         }
       }
     },
-    "Check for Updates…" : {
-      "comment" : "A button that checks for updates.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nach Updates suchen …"
+    "All items cancelled": {
+      "comment": "Status bar: every item was cancelled",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Objekte abgebrochen"
           }
         }
       }
     },
-    "Choose files or folders to free from quarantine" : {
-      "comment" : "NSOpenPanel message for files and folders",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dateien oder Ordner auswählen, um die Quarantäne aufzuheben"
+    "An error occurred": {
+      "comment": "Fallback error message",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Fehler ist aufgetreten"
           }
         }
       }
     },
-    "Choose files to free from quarantine" : {
-      "comment" : "NSOpenPanel message for files only",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dateien auswählen, um die Quarantäne aufzuheben"
+    "Cancel": {
+      "comment": "Alert button: cancel\nConfirm dialog: cancel button",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
           }
         }
       }
     },
-    "Choose Files…" : {
-      "comment" : "Button to open file picker",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dateien auswählen …"
+    "Cancel All": {
+      "comment": "Button: cancel all in-flight items",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle abbrechen"
           }
         }
       }
     },
-    "Choose folders to free from quarantine" : {
-      "comment" : "NSOpenPanel message for folders only",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner auswählen, um die Quarantäne aufzuheben"
+    "Cancel all in-flight items": {
+      "comment": "Help tag for the Cancel All button",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle laufenden Vorgänge abbrechen"
           }
         }
       }
     },
-    "Clear All" : {
-      "comment" : "Button: remove all items from the list",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle entfernen"
+    "Cancel processing": {
+      "comment": "Accessibility label: cancel button on a row",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verarbeitung abbrechen"
           }
         }
       }
     },
-    "Could not read %@ — the files inside were skipped" : {
-      "comment" : "Error: a subfolder could not be descended into, so its contents were never processed"
+    "Cancelled": {
+      "comment": "Compact status: cancelled\nNotification title: nothing processed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgebrochen"
+          }
+        }
+      }
+    },
+    "Check for Updates…": {
+      "comment": "A button that checks for updates.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Updates suchen …"
+          }
+        }
+      }
+    },
+    "Choose Files…": {
+      "comment": "Button: open the file picker",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien auswählen …"
+          }
+        }
+      }
+    },
+    "Choose files or folders to free from quarantine": {
+      "comment": "NSOpenPanel message for files and folders",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien oder Ordner auswählen, um die Quarantäne aufzuheben"
+          }
+        }
+      }
+    },
+    "Choose files to free from quarantine": {
+      "comment": "NSOpenPanel message for files only",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien auswählen, um die Quarantäne aufzuheben"
+          }
+        }
+      }
+    },
+    "Choose folders to free from quarantine": {
+      "comment": "NSOpenPanel message for folders only",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner auswählen, um die Quarantäne aufzuheben"
+          }
+        }
+      }
+    },
+    "Clear All": {
+      "comment": "Button: remove all items from the list",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle entfernen"
+          }
+        }
+      }
+    },
+    "Could not look inside %@": {
+      "comment": "Error: a subfolder could not be descended into, so its contents were never processed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In %@ konnte nicht hineingesehen werden"
+          }
+        }
+      }
+    },
+    "Could not remove quarantine from %@.": {
+      "comment": "Notification body: single file failure",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne von %@ konnte nicht aufgehoben werden."
+          }
+        }
+      }
+    },
+    "Could not remove quarantine from %lld items.": {
+      "comment": "Notification body: multiple files failure",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne von %lld Objekten konnte nicht aufgehoben werden."
+          }
+        }
+      }
+    },
+    "Drag files or folders here, or choose them manually": {
+      "comment": "Full drop zone: subtext in idle state",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien oder Ordner hierher ziehen oder manuell auswählen"
+          }
+        }
+      }
+    },
+    "Drop files to remove quarantine": {
+      "comment": "Full drop zone: main heading in idle state",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien ablegen, um die Quarantäne aufzuheben"
+          }
+        }
+      }
+    },
+    "Drop more files here": {
+      "comment": "Compact drop zone: idle state hint",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weitere Dateien hierher ziehen"
+          }
+        }
+      }
+    },
+    "Drop zone. Drag files or folders to remove quarantine.": {
+      "comment": "Accessibility label: full drop zone",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ablagezone. Dateien oder Ordner hierher ziehen, um die Quarantäne aufzuheben."
+          }
+        }
+      }
+    },
+    "Drop zone. Drop more files here.": {
+      "comment": "Accessibility label: compact drop zone",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ablagezone. Weitere Dateien hierher ziehen."
+          }
+        }
+      }
+    },
+    "Error": {
+      "comment": "Compact status: error fallback",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehler"
+          }
+        }
+      }
+    },
+    "Error: %@": {
+      "comment": "Accessibility label: error button with file name",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehler: %@"
+          }
+        }
+      }
     },
-    "Could not remove quarantine from %@." : {
-      "comment" : "Notification body: single file failure",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne von %@ konnte nicht aufgehoben werden."
+    "Freed — ready to use": {
+      "comment": "Compact status: success\nFile row status: success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freigegeben – einsatzbereit"
           }
         }
       }
     },
-    "Could not remove quarantine from %lld items." : {
-      "comment" : "Notification body: multiple files failure",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne von %lld Elementen konnte nicht aufgehoben werden."
+    "In progress": {
+      "comment": "Accessibility value: work is still running",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft"
           }
         }
       }
     },
-    "Drag files or folders here, or choose them manually" : {
-      "comment" : "Full drop zone: subtext in idle state",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dateien oder Ordner hierher ziehen oder manuell auswählen"
+    "It may have been moved or deleted. Drag it in again from where it is now.": {
+      "comment": "Error recovery: file is gone",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie wurde vielleicht verschoben oder gelöscht. Zieh sie noch einmal von ihrem jetzigen Ort herein."
           }
         }
       }
     },
-    "Drop files to remove quarantine" : {
-      "comment" : "Full drop zone: main heading in idle state",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dateien ablegen, um die Quarantäne aufzuheben"
+    "Items still in progress will be left as they are.": {
+      "comment": "Alert body: quitting with work in flight",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Objekte, die gerade laufen, bleiben unverändert."
           }
         }
       }
     },
-    "Drop more files here" : {
-      "comment" : "Compact drop zone: idle state hint",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weitere Dateien hierher ziehen"
+    "No items could be freed": {
+      "comment": "Status bar: nothing succeeded",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Objekte konnten freigegeben werden"
           }
         }
       }
     },
-    "Drop zone. Drag files or folders to remove quarantine." : {
-      "comment" : "Accessibility label: full drop zone",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ablagezone. Dateien oder Ordner hierher ziehen, um die Quarantäne aufzuheben."
+    "No permission to change %@": {
+      "comment": "Error: no permission to access file",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Berechtigung, %@ zu ändern"
           }
         }
       }
     },
-    "Drop zone. Drop more files here." : {
-      "comment" : "Accessibility label: compact drop zone",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ablagezone. Weitere Dateien hierher ziehen."
+    "No quarantine was removed.": {
+      "comment": "Notification body: cancelled, nothing removed",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde keine Quarantäne entfernt."
           }
         }
       }
     },
-    "Error" : {
-      "comment" : "Compact status: error fallback",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fehler"
+    "Not in quarantine": {
+      "comment": "Compact status: had no quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "War nicht in Quarantäne"
           }
         }
       }
     },
-    "Error: %@" : {
-      "comment" : "Accessibility label: error button with file name",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fehler: %@"
+    "Not in quarantine — nothing to do": {
+      "comment": "File row status: had no quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "War nicht in Quarantäne – nichts zu tun"
           }
         }
       }
     },
-    "File not found: %@" : {
-      "comment" : "Error: file does not exist",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datei nicht gefunden: %@"
+    "Nothing needed freeing": {
+      "comment": "Status bar: nothing had quarantine to remove",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es musste nichts freigegeben werden"
           }
         }
       }
     },
-    "Freed from quarantine" : {
-      "comment" : "Compact status: success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne aufgehoben"
+    "Nothing to Remove": {
+      "comment": "Notification title: nothing had quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Quarantäne vorhanden"
           }
         }
       }
     },
-    "Invalid URL: %@" : {
-      "comment" : "Error: URL is not a valid file URL",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ungültige URL: %@"
+    "Only continue if you started this yourself.\n\n%@": {
+      "comment": "Confirm dialog body: warn about an external quarantine-removal request",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahre nur fort, wenn du das selbst gestartet hast.\n\n%@"
           }
         }
       }
     },
-    "No items could be freed" : {
-      "comment" : "Status bar: no items succeeded",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Elemente konnten freigegeben werden"
+    "Open": {
+      "comment": "Confirm dialog: open button",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnen"
           }
         }
       }
     },
-    "No quarantine was removed." : {
-      "comment" : "Notification body: cancelled, nothing removed",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Es wurde keine Quarantäne entfernt."
+    "Open %@?": {
+      "comment": "Confirm dialog title: open a single file after removing quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ öffnen?"
           }
         }
       }
     },
-    "Only continue if you started this yourself.\n\n%@" : {
-      "comment" : "Confirm dialog body: warn about an external quarantine-removal request",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fahre nur fort, wenn du das selbst gestartet hast.\n\n%@"
+    "Open %lld items?": {
+      "comment": "Confirm dialog title: open multiple files after removing quarantine",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Objekte öffnen?"
           }
         }
       }
     },
-    "Open" : {
-      "comment" : "Confirm dialog: open button",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Öffnen"
+    "Open File…": {
+      "comment": "Menu item: open file picker",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei öffnen …"
           }
         }
       }
     },
-    "Open %@?" : {
-      "comment" : "Confirm dialog title: open a single file after removing quarantine",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ öffnen?"
+    "Open Folder…": {
+      "comment": "Menu item: open folder picker",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner öffnen …"
           }
         }
       }
     },
-    "Open %lld items?" : {
-      "comment" : "Confirm dialog title: open multiple files after removing quarantine",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Objekte öffnen?"
+    "Processing was cancelled": {
+      "comment": "File row status: cancelled",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verarbeitung wurde abgebrochen"
           }
         }
       }
     },
-    "Open File…" : {
-      "comment" : "Menu item: open file picker",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datei öffnen …"
+    "Processing…": {
+      "comment": "File row status: currently processing",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verarbeitung …"
           }
         }
       }
     },
-    "Open Folder…" : {
-      "comment" : "Menu item: open folder picker",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner öffnen …"
+    "Quarantine Partially Removed": {
+      "comment": "Notification title: partial success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne teilweise aufgehoben"
           }
         }
       }
     },
-    "Permission denied: %@" : {
-      "comment" : "Error: no permission to access file",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zugriff verweigert: %@"
+    "Quarantine Removal Failed": {
+      "comment": "Notification title: failure",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne konnte nicht aufgehoben werden"
           }
         }
       }
     },
-    "Processing timed out: %@" : {
-      "comment" : "Error: operation took too long",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeitüberschreitung: %@"
+    "Quarantine Removed": {
+      "comment": "Notification title: success",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne aufgehoben"
           }
         }
       }
     },
-    "Processing was cancelled" : {
-      "comment" : "File row status: cancelled",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verarbeitung wurde abgebrochen"
+    "Quarantine sits on the item the link points at. Drag that one in instead.": {
+      "comment": "Error recovery: the item is a symbolic link",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Quarantäne sitzt auf dem Objekt, auf das die Verknüpfung zeigt. Zieh dieses stattdessen herein."
           }
         }
       }
     },
-    "Processing…" : {
-      "comment" : "File row status: currently processing",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verarbeitung …"
+    "Quarantine was removed. Only open items you trust.": {
+      "comment": "Confirm dialog body: warn before opening files after quarantine removal",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Quarantäne wurde entfernt. Öffne nur Objekte, denen du vertraust."
           }
         }
       }
     },
-    "Quarantine Partially Removed" : {
-      "comment" : "Notification title: partial success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne teilweise aufgehoben"
+    "Quit": {
+      "comment": "Alert button: quit anyway",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beenden"
           }
         }
       }
     },
-    "Quarantine Removal Failed" : {
-      "comment" : "Notification title: failure",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne konnte nicht aufgehoben werden"
+    "Quit while items are still being freed?": {
+      "comment": "Alert title: quitting with work in flight",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beenden, während noch Objekte freigegeben werden?"
           }
         }
       }
     },
-    "Quarantine Removed" : {
-      "comment" : "Notification title: success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne aufgehoben"
+    "Release to free from quarantine": {
+      "comment": "Drop zone status while a drag hovers over it",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loslassen, um die Quarantäne aufzuheben"
           }
         }
       }
     },
-    "Quarantine removed successfully" : {
-      "comment" : "File row status: success",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne erfolgreich aufgehoben"
+    "Release to remove quarantine": {
+      "comment": "Accessibility label: full drop zone while a drag hovers over it",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loslassen, um die Quarantäne aufzuheben"
           }
         }
       }
     },
-    "Quarantine was removed. Only open items you trust." : {
-      "comment" : "Confirm dialog body: warn before opening files after quarantine removal",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Quarantäne wurde entfernt. Öffne nur Objekte, denen du vertraust."
+    "Remove Quarantine": {
+      "comment": "Confirm dialog: remove quarantine button\nNSOpenPanel confirm button",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne aufheben"
           }
         }
       }
     },
-    "Release to free from quarantine" : {
-      "comment" : "Drop zone status while a drag hovers over it",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loslassen, um die Quarantäne aufzuheben"
+    "Remove all items from the list": {
+      "comment": "Tooltip for Clear All button",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Objekte aus der Liste entfernen"
           }
         }
       }
     },
-    "Release to remove quarantine" : {
-      "comment" : "Accessibility label: full drop zone while a drag hovers over it",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loslassen, um die Quarantäne aufzuheben"
+    "Remove quarantine from %@?": {
+      "comment": "Confirm dialog title: external request to remove quarantine from one file",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne von %@ aufheben?"
           }
         }
       }
     },
-    "Remove all items from the list" : {
-      "comment" : "Tooltip for Clear All button",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Elemente aus der Liste entfernen"
+    "Remove quarantine from %lld items?": {
+      "comment": "Confirm dialog title: external request to remove quarantine from multiple files",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne von %lld Objekten aufheben?"
           }
         }
       }
     },
-    "Remove Quarantine" : {
-      "comment" : "Confirm dialog: remove quarantine button\nNSOpenPanel confirm button",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne aufheben"
+    "Removing quarantine…": {
+      "comment": "Compact status: processing",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantäne wird aufgehoben …"
           }
         }
       }
     },
-    "Remove quarantine from %@?" : {
-      "comment" : "Confirm dialog title: external request to remove quarantine from one file",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne von %@ entfernen?"
+    "Select the file in Finder and press Command-I. Under “Sharing & Permissions”, give your account read & write access, then try again.": {
+      "comment": "Error recovery: how to grant write permission in Finder",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähl die Datei im Finder aus und drück Befehl-I. Gib deinem Benutzer unter „Freigabe & Zugriffsrechte“ Lese- und Schreibrechte und versuch es dann noch einmal."
           }
         }
       }
     },
-    "Remove quarantine from %lld items?" : {
-      "comment" : "Confirm dialog title: external request to remove quarantine from multiple files",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne von %lld Objekten entfernen?"
+    "Show error details": {
+      "comment": "Accessibility action: open the error popover",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlerdetails anzeigen"
           }
         }
       }
     },
-    "Removing quarantine…" : {
-      "comment" : "Compact status: processing",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne wird aufgehoben …"
+    "Show in Finder": {
+      "comment": "Accessibility label: reveal the file in Finder",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Finder zeigen"
           }
         }
       }
     },
-    "Show error details" : {
-      "comment" : "Accessibility action: open the error popover",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fehlerdetails anzeigen"
+    "Smuggler": {
+      "comment": "Brand name — do not translate.",
+      "shouldTranslate": false
+    },
+    "Smuggler never changes files in protected system folders.": {
+      "comment": "Error recovery: protected system location",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smuggler ändert niemals Dateien in geschützten Systemordnern."
+          }
+        }
+      }
+    },
+    "The files in this folder were skipped. Check that you can open it in Finder, then try again.": {
+      "comment": "Error recovery: folder could not be descended into",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Dateien in diesem Ordner wurden übersprungen. Prüf, ob du ihn im Finder öffnen kannst, und versuch es dann noch einmal."
+          }
+        }
+      }
+    },
+    "The selected items could not be read. Try again from Finder.": {
+      "comment": "Notification body: the sender's item list never arrived",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ausgewählten Objekte konnten nicht gelesen werden. Versuch es noch einmal aus dem Finder."
+          }
+        }
+      }
+    },
+    "This isn't a file on this Mac. Drag it in from Finder instead.": {
+      "comment": "Error recovery: not a file URL",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist keine Datei auf diesem Mac. Zieh sie stattdessen aus dem Finder herein."
+          }
+        }
+      }
+    },
+    "Very large folders can run past the time limit. Try again, or drop the folders inside it one at a time.": {
+      "comment": "Error recovery: operation took too long",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sehr große Ordner können das Zeitlimit überschreiten. Versuch es noch einmal oder zieh die enthaltenen Ordner einzeln herein."
           }
         }
       }
     },
-    "Smuggler" : {
-      "comment" : "Brand name — do not translate.",
-      "shouldTranslate" : false
+    "and %lld more": {
+      "comment": "Confirm dialog: suffix when the path list is truncated",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "und %lld weitere"
+          }
+        }
+      }
     },
-    "System error %d for: %@" : {
-      "comment" : "Error: unexpected system error with errno code",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Systemfehler %1$d für: %2$@"
+    "and %lld more items": {
+      "comment": "Error popover: suffix when the failing-item list is truncated\nService window: summary row when several items are hidden by the row cap",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "und %lld weitere Objekte"
           }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System error %1$d for: %2$@"
+        }
+      }
+    },
+    "and 1 more item": {
+      "comment": "Error popover: suffix when one failing item is hidden\nService window: summary row when one item is hidden by the row cap",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "und 1 weiteres Objekt"
           }
         }
       }
     },
-    "System location cannot be modified: %@" : {
-      "comment" : "Error: path is in a protected system location",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Systemort kann nicht geändert werden: %@"
+    "macOS refused the change (code %lld). Try again — if it keeps happening, restart your Mac.": {
+      "comment": "Error recovery: unexpected system error, code shown for support",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat die Änderung abgelehnt (Code %lld). Versuch es noch einmal – wenn es weiter passiert, starte deinen Mac neu."
           }
         }
       }
     }
   },
-  "version" : "1.1"
+  "version": "1.1"
 }

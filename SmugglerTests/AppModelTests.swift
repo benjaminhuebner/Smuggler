@@ -182,6 +182,7 @@ struct AppModelProcessingTests {
         open: AppModel.OpenHandler? = nil,
         terminate: AppModel.TerminateHandler? = nil,
         notify: AppModel.NotifyHandler? = nil,
+        notifyFailure: AppModel.NotifyFailureHandler? = nil,
         tokenStore: ServiceTokenStore = ServiceTokenStore()
     ) -> AppModel {
         AppModel(
@@ -192,6 +193,7 @@ struct AppModelProcessingTests {
             terminate: terminate,
             authorize: {},
             notify: notify,
+            notifyFailure: notifyFailure,
             tokenStore: tokenStore
         )
     }
@@ -232,7 +234,7 @@ struct AppModelProcessingTests {
         #expect(model.items.count == 1)
         #expect(model.items[0].status == .clean)
         #expect(model.isProcessing == false)
-        #expect(model.cleanedCount == 1)
+        #expect(model.freedCount == 1)
     }
 
     @Test("File without quarantine attribute maps to alreadyClean, not clean")
@@ -321,6 +323,7 @@ struct AppModelProcessingTests {
         var terminated = false
         var terminateCount = 0
         var notifiedBatches: [[FileItem]] = []
+        var failureNotifications = 0
         var statusAtTerminate: FileStatus?
         var injectedSecondBatch = false
     }
@@ -1090,6 +1093,73 @@ struct AppModelProcessingTests {
 
         #expect(recorder.terminateCount == 1)
         #expect(model.items.isEmpty)
+    }
+
+    @Test("A handover that cannot be read is reported instead of passing as an empty request")
+    func unreadableBatchNotifiesFailure() async throws {
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            // Stubbed even though this path never confirms: the real handler is a
+            // modal, and a regression that reached it would wedge the suite.
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) },
+            notifyFailure: { recorder.failureNotifications += 1 },
+            tokenStore: try makeTokenStore()
+        )
+
+        await model.handleIncomingRequest(
+            IncomingRequest(
+                urls: [], action: .remove, quitAfter: true, token: nil,
+                batchName: UUID().uuidString),
+            isColdLaunch: true
+        ).value
+
+        #expect(recorder.confirmedKinds.isEmpty)
+
+        #expect(recorder.failureNotifications == 1)
+        #expect(recorder.notifiedBatches.isEmpty)
+        #expect(recorder.terminateCount == 1)
+        #expect(model.items.isEmpty)
+    }
+
+    @Test("A failed handover behind a queued successor reports without quitting")
+    func unreadableBatchDefersToQueuedSuccessor() async throws {
+        let real = try makeQuarantinedFile()
+        defer { try? FileManager.default.removeItem(at: real) }
+        let recorder = HandlerRecorder()
+        let model = makeModel(
+            minimumProcessingDuration: .zero,
+            confirm: { _, kind in
+                recorder.confirmedKinds.append(kind)
+                return true
+            },
+            terminate: { recorder.terminateCount += 1 },
+            notify: { recorder.notifiedBatches.append($0) },
+            notifyFailure: { recorder.failureNotifications += 1 },
+            tokenStore: try makeTokenStore()
+        )
+
+        let failing = model.handleIncomingRequest(
+            IncomingRequest(
+                urls: [], action: .remove, quitAfter: true, token: nil,
+                batchName: UUID().uuidString),
+            isColdLaunch: true
+        )
+        let successor = model.handleIncomingRequest(
+            IncomingRequest(urls: [real], action: .remove, quitAfter: false, token: nil),
+            isColdLaunch: false
+        )
+        await failing.value
+        await successor.value
+
+        #expect(recorder.failureNotifications == 1)
+        #expect(recorder.terminateCount == 0)
+        try await waitUntil { model.items.first?.status == .clean }
     }
 
     @Test("A cold-launch tokened remove processes silently, notifies, and terminates")

@@ -25,7 +25,7 @@ nonisolated struct ServiceTokenStore: Sendable {
         let token = UUID().uuidString
         do {
             try FileManager.default.createDirectory(at: tokensDirectory, withIntermediateDirectories: true)
-            pruneStaleTokens(in: tokensDirectory)
+            ServiceDropDirectory.pruneStaleFiles(in: tokensDirectory, olderThan: Self.defaultMaxAge)
             try Data().write(to: tokensDirectory.appending(path: token))
         } catch {
             return nil
@@ -45,20 +45,5 @@ nonisolated struct ServiceTokenStore: Sendable {
         // delete fails the file would stay presentable, so fail closed.
         guard (try? FileManager.default.removeItem(at: file)) != nil else { return false }
         return Date().timeIntervalSince(issuedAt) <= maxAge
-    }
-
-    // Tokens from crashed or abandoned flows would otherwise accumulate forever.
-    private func pruneStaleTokens(in directory: URL) {
-        guard
-            let files = try? FileManager.default.contentsOfDirectory(
-                at: directory, includingPropertiesForKeys: [.creationDateKey])
-        else { return }
-        let now = Date()
-        for file in files {
-            let created = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
-            if let created, now.timeIntervalSince(created) > Self.defaultMaxAge {
-                try? FileManager.default.removeItem(at: file)
-            }
-        }
     }
 }

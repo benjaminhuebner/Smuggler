@@ -16,6 +16,7 @@ final class AppModel {
     typealias TerminateHandler = @MainActor () -> Void
     typealias AuthorizeHandler = @MainActor () async -> Void
     typealias NotifyHandler = @MainActor ([FileItem]) async -> Void
+    typealias NotifyFailureHandler = @MainActor () async -> Void
 
     // Minimum visible processing duration so the user sees the app working.
     let minimumProcessingDuration: Duration
@@ -29,6 +30,7 @@ final class AppModel {
     let terminate: TerminateHandler
     let authorize: AuthorizeHandler
     let notify: NotifyHandler
+    let notifyFailure: NotifyFailureHandler
     let tokenStore: ServiceTokenStore
 
     init(
@@ -39,6 +41,7 @@ final class AppModel {
         terminate: TerminateHandler? = nil,
         authorize: AuthorizeHandler? = nil,
         notify: NotifyHandler? = nil,
+        notifyFailure: NotifyFailureHandler? = nil,
         tokenStore: ServiceTokenStore = ServiceTokenStore()
     ) {
         self.minimumProcessingDuration = minimumProcessingDuration
@@ -57,6 +60,7 @@ final class AppModel {
         self.terminate = terminate ?? { NSApp.terminate(nil) }
         self.authorize = authorize ?? { await NotificationService.requestAuthorization() }
         self.notify = notify ?? { await NotificationService.postResult(items: $0) }
+        self.notifyFailure = notifyFailure ?? { await NotificationService.postRequestFailure() }
     }
 
     var items: [FileItem] = []
@@ -83,13 +87,11 @@ final class AppModel {
 
     var isProcessing: Bool { processingCount > 0 }
 
-    var cleanedCount: Int {
-        items.count(where: \.status.isSuccessful)
-    }
+    var freedCount: Int { items.freedCount }
 
-    var failedCount: Int {
-        items.count(where: \.status.hasErrors)
-    }
+    var alreadyFreeCount: Int { items.alreadyFreeCount }
+
+    var failedCount: Int { items.failedCount }
 
     var allCancelled: Bool {
         !items.isEmpty && items.allSatisfy { $0.status == .cancelled }
@@ -181,13 +183,25 @@ final class AppModel {
                         let walk = Task.detached(priority: .userInitiated) {
                             let status: FileStatus
                             do {
-                                let result = try service.removeQuarantineRecursively(url)
-                                if result.errors.isEmpty {
+                                let result = try service.removeQuarantineRecursively(url, deadline: start + timeout)
+                                // A walk that ran out of time still freed what it
+                                // freed; the timeout joins the errors instead of
+                                // replacing a result the run actually achieved.
+                                var errors = result.errors
+                                if result.timedOut {
+                                    errors.append(QuarantineFileError(url: url, error: .timeout(url)))
+                                }
+                                if errors.isEmpty {
                                     status = result.cleaned > 0 ? .clean : .alreadyClean
                                 } else if result.cleaned > 0 {
-                                    status = .partialSuccess(cleaned: result.cleaned, errors: result.errors)
+                                    status = .partialSuccess(cleaned: result.cleaned, errors: errors)
+                                } else if result.timedOut {
+                                    // The deadline is why the rest was never visited;
+                                    // a per-file error would send the user after one
+                                    // file while the walk stopped for another reason.
+                                    status = .error(.timeout(url))
                                 } else {
-                                    status = .error(result.errors[0].error)
+                                    status = .error(errors[0].error)
                                 }
                             } catch let error as QuarantineError {
                                 status = .error(error)
@@ -205,8 +219,11 @@ final class AppModel {
                         }
                     }
 
+                    // Backstop only. The walk stops itself at the deadline and
+                    // reports its partial result; this fires just for a walk
+                    // wedged inside a single syscall, which no loop check reaches.
                     inner.addTask {
-                        try? await Task.sleep(for: timeout)
+                        try? await Task.sleep(for: timeout + .seconds(5))
                         return .error(.timeout(url))
                     }
 

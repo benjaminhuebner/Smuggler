@@ -16,12 +16,14 @@ nonisolated struct QuarantineResult: Equatable, Sendable {
     var processed: Int = 0
     var cleaned: Int = 0
     var errors: [QuarantineFileError] = []
+    var timedOut: Bool = false
 }
 
 // MARK: - QuarantineError
 
 nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
     case invalidURL(URL)
+    case symbolicLink(URL)
     case fileNotFound(URL)
     case permissionDenied(URL)
     case timeout(URL)
@@ -33,36 +35,92 @@ nonisolated enum QuarantineError: LocalizedError, Equatable, Sendable {
         if case .unreadableDirectory = self { true } else { false }
     }
 
+    var refersToMissingFile: Bool {
+        switch self {
+        case .fileNotFound, .invalidURL: true
+        default: false
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .invalidURL(let url):
             String(
-                localized: "Invalid URL: \(url.absoluteString)",
+                localized: "\(url.lastPathComponent) can't be used",
                 comment: "Error: URL is not a valid file URL")
+        case .symbolicLink(let url):
+            String(
+                localized: "\(url.lastPathComponent) is a link, not a file",
+                comment: "Error: the item is a symbolic link")
         case .fileNotFound(let url):
             String(
-                localized: "File not found: \(url.lastPathComponent)",
+                localized: "\(url.lastPathComponent) could not be found",
                 comment: "Error: file does not exist")
         case .permissionDenied(let url):
             String(
-                localized: "Permission denied: \(url.lastPathComponent)",
+                localized: "No permission to change \(url.lastPathComponent)",
                 comment: "Error: no permission to access file")
         case .timeout(let url):
             String(
-                localized: "Processing timed out: \(url.lastPathComponent)",
+                localized: "\(url.lastPathComponent) took too long",
                 comment: "Error: operation took too long")
-        case .systemError(let url, let code):
+        case .systemError(let url, _):
             String(
-                localized: "System error \(code) for: \(url.lastPathComponent)",
-                comment: "Error: unexpected system error with errno code")
+                localized: "\(url.lastPathComponent) could not be changed",
+                comment: "Error: unexpected system error")
         case .blockedPath(let url):
             String(
-                localized: "System location cannot be modified: \(url.lastPathComponent)",
+                localized: "\(url.lastPathComponent) belongs to macOS",
                 comment: "Error: path is in a protected system location")
         case .unreadableDirectory(let url):
             String(
-                localized: "Could not read \(url.lastPathComponent) — the files inside were skipped",
+                localized: "Could not look inside \(url.lastPathComponent)",
                 comment: "Error: a subfolder could not be descended into, so its contents were never processed")
+        }
+    }
+
+    // The description names the problem in one line so a row stays one line;
+    // the way out is longer than a row can carry and belongs in the popover.
+    var recoverySuggestion: String? {
+        switch self {
+        case .invalidURL:
+            String(
+                localized: "This isn't a file on this Mac. Drag it in from Finder instead.",
+                comment: "Error recovery: not a file URL")
+        case .symbolicLink:
+            String(
+                localized: "Quarantine sits on the item the link points at. Drag that one in instead.",
+                comment: "Error recovery: the item is a symbolic link")
+        case .fileNotFound:
+            String(
+                localized: "It may have been moved or deleted. Drag it in again from where it is now.",
+                comment: "Error recovery: file is gone")
+        case .permissionDenied:
+            String(
+                localized: """
+                    Select the file in Finder and press Command-I. Under “Sharing & Permissions”, \
+                    give your account read & write access, then try again.
+                    """,
+                comment: "Error recovery: how to grant write permission in Finder")
+        case .timeout:
+            String(
+                localized:
+                    "Very large folders can run past the time limit. Try again, or drop the folders inside it one at a time.",
+                comment: "Error recovery: operation took too long")
+        case .systemError(_, let code):
+            String(
+                localized:
+                    "macOS refused the change (code \(Int(code))). Try again — if it keeps happening, restart your Mac.",
+                comment: "Error recovery: unexpected system error, code shown for support")
+        case .blockedPath:
+            String(
+                localized: "Smuggler never changes files in protected system folders.",
+                comment: "Error recovery: protected system location")
+        case .unreadableDirectory:
+            String(
+                localized:
+                    "The files in this folder were skipped. Check that you can open it in Finder, then try again.",
+                comment: "Error recovery: folder could not be descended into")
         }
     }
 }
@@ -131,7 +189,7 @@ nonisolated struct QuarantineService: Sendable {
 
     // Throws only if `url` itself is invalid or missing; per-file errors inside a
     // directory are collected in the returned `QuarantineResult` rather than thrown.
-    func removeQuarantineRecursively(_ url: URL) throws -> QuarantineResult {
+    func removeQuarantineRecursively(_ url: URL, deadline: ContinuousClock.Instant? = nil) throws -> QuarantineResult {
         guard url.isFileURL else {
             throw QuarantineError.invalidURL(url)
         }
@@ -144,7 +202,7 @@ nonisolated struct QuarantineService: Sendable {
         if let linkValues = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]),
             linkValues.isSymbolicLink == true
         {
-            throw QuarantineError.invalidURL(url)
+            throw QuarantineError.symbolicLink(url)
         }
 
         // Check existence and directory status in one call — avoids TOCTOU with removexattr.
@@ -161,6 +219,10 @@ nonisolated struct QuarantineService: Sendable {
         }
 
         var result = QuarantineResult()
+        if Self.isPastDeadline(deadline) {
+            result.timedOut = true
+            return result
+        }
         removeQuarantineFromItem(url, into: &result)
 
         if isDir {
@@ -190,6 +252,12 @@ nonisolated struct QuarantineService: Sendable {
                 // Abort promptly on timeout or user cancellation so the blocking
                 // enumeration stops and frees its cooperative-pool thread.
                 if Task.isCancelled { break }
+                // Stopping here rather than letting an outer race cancel the walk
+                // is what keeps the files already freed in the reported result.
+                if Self.isPastDeadline(deadline) {
+                    result.timedOut = true
+                    break
+                }
                 if let values = try? itemURL.resourceValues(forKeys: [.isSymbolicLinkKey]),
                     values.isSymbolicLink == true
                 {
@@ -204,6 +272,11 @@ nonisolated struct QuarantineService: Sendable {
     }
 
     // MARK: - Private
+
+    private static func isPastDeadline(_ deadline: ContinuousClock.Instant?) -> Bool {
+        guard let deadline else { return false }
+        return ContinuousClock.now >= deadline
+    }
 
     private func removeQuarantineFromItem(_ url: URL, into result: inout QuarantineResult) {
         result.processed += 1

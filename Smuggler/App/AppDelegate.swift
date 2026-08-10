@@ -57,6 +57,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    // Logout, restart and shutdown ask through an Apple event; a modal here would
+    // stall that and macOS would report Smuggler as the app that cancelled it.
+    // A menu quit or a closing window carries no event.
+    private static var isSystemInitiatedQuit: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        return event.eventClass == kCoreEventClass && event.eventID == kAEQuitApplication
+    }
+
+    // A headless service session ends itself on purpose; only a person quitting
+    // mid-run is doing it without knowing what they abandon.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard appModel.serviceMode == nil, appModel.isProcessing, !Self.isSystemInitiatedQuit else {
+            return .terminateNow
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(
+            localized: "Quit while items are still being freed?",
+            comment: "Alert title: quitting with work in flight")
+        alert.informativeText = String(
+            localized: "Items still in progress will be left as they are.",
+            comment: "Alert body: quitting with work in flight")
+        alert.addButton(withTitle: String(localized: "Quit", comment: "Alert button: quit anyway"))
+        alert.addButton(withTitle: String(localized: "Cancel", comment: "Alert button: cancel"))
+        alert.buttons[0].keyEquivalent = ""
+        alert.buttons[1].keyEquivalent = "\u{1b}"
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            // This path is also how closing the last window asks to quit. Staying
+            // alive without bringing the window back would leave the work the user
+            // just chose to keep running out of sight.
+            if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
     // MARK: - NSServices handler
 
     @objc func removeQuarantine(

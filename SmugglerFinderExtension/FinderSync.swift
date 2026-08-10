@@ -71,20 +71,35 @@ final class FinderSync: FIFinderSync {
         let urls = FIFinderSyncController.default().selectedItemURLs() ?? []
         guard !urls.isEmpty else { return }
 
-        var components = URLComponents()
-        components.scheme = "smuggler"
-        components.host = "process"
-
-        // Use one query item per path — avoids breakage from filenames containing newlines
-        var queryItems = urls.map { URLQueryItem(name: "path", value: $0.path(percentEncoded: false)) }
-        queryItems.append(URLQueryItem(name: "action", value: action))
-        queryItems.append(URLQueryItem(name: "quitAfter", value: "true"))
+        var fixedItems = [
+            URLQueryItem(name: "action", value: action),
+            URLQueryItem(name: "quitAfter", value: "true"),
+        ]
         if let token = ServiceTokenStore().issueToken() {
-            queryItems.append(URLQueryItem(name: "token", value: token))
+            fixedItems.append(URLQueryItem(name: "token", value: token))
         } else {
             logger.warning("Could not issue service token — app will show a confirmation dialog")
         }
-        components.queryItems = queryItems
+
+        let paths = urls.map { $0.path(percentEncoded: false) }
+
+        var components = URLComponents()
+        components.scheme = "smuggler"
+        components.host = "process"
+        // One query item per path — avoids breakage from filenames containing newlines.
+        components.queryItems = paths.map { URLQueryItem(name: "path", value: $0) } + fixedItems
+
+        // Past this length Launch Services can refuse the whole request, and a
+        // refusal here is invisible to the person who clicked. The paths go
+        // through the shared container instead, leaving a constant-length URL.
+        if (components.url?.absoluteString.utf8.count ?? .max) > Self.maxDirectURLLength {
+            if let batch = ServiceBatchStore().write(paths: paths) {
+                components.queryItems = [URLQueryItem(name: "batch", value: batch)] + fixedItems
+                logger.info("Selection too large for a direct URL — handing \(paths.count) path(s) over as a batch")
+            } else {
+                logger.error("Could not write the path batch — falling back to a URL that may be refused")
+            }
+        }
 
         guard let url = components.url else {
             logger.error("Failed to construct smuggler:// URL")
@@ -95,12 +110,12 @@ final class FinderSync: FIFinderSync {
 
         Task { @MainActor in
             if !NSWorkspace.shared.open(url) {
-                // Overlong URLs from huge selections can make Launch Services
-                // decline the whole request — leave a trace instead of nothing.
                 logger.error("NSWorkspace declined to open the smuggler:// URL (\(urls.count) items)")
             }
         }
     }
+
+    private static let maxDirectURLLength = 6000
 
     // Duplicates `QuarantineService.hasQuarantine` deliberately: sharing the file
     // via target membership would drag unused recursion code and localized error

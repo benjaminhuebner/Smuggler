@@ -30,8 +30,17 @@ struct FileRowView: View {
     @State private var icon: NSImage?
     @State private var isHovered = false
     @FocusState private var cancelFocused: Bool
+    @FocusState private var revealFocused: Bool
 
     private static let placeholderIcon = NSImage(systemSymbolName: "doc", accessibilityDescription: nil) ?? NSImage()
+
+    private static let iconSize: CGFloat = 28
+    private static let compactHorizontalPadding: CGFloat = 12
+    private static let compactContentSpacing: CGFloat = 10
+
+    // Derived, not repeated: dividers and summary rows in the service window
+    // align to this column, and a hand-copied value silently drifts from it.
+    static let compactTextInset = compactHorizontalPadding + iconSize + compactContentSpacing
 
     private var isFinished: Bool { item.status != .processing }
 
@@ -65,11 +74,21 @@ struct FileRowView: View {
         isFinished ? 1.0 : animatedProgress
     }
 
+    // Revealing is not opening: it launches nothing, so it needs no confirmation.
+    private var canRevealInFinder: Bool {
+        guard style == .list, presentsAsFinished else { return false }
+        switch item.status {
+        case .clean, .alreadyClean, .partialSuccess: return true
+        case .error(let error): return !error.refersToMissingFile
+        default: return false
+        }
+    }
+
     var body: some View {
-        HStack(spacing: style == .compact ? 10 : 12) {
+        HStack(spacing: style == .compact ? Self.compactContentSpacing : 12) {
             Image(nsImage: icon ?? Self.placeholderIcon)
                 .resizable()
-                .frame(width: 28, height: 28)
+                .frame(width: Self.iconSize, height: Self.iconSize)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -79,26 +98,56 @@ struct FileRowView: View {
                     .truncationMode(.middle)
 
                 if showsProgressBar {
+                    // The fill is a paced estimate, not measured progress, so the
+                    // spoken value must not read as a percentage of the real work.
                     ProgressView(value: displayProgress)
                         .progressViewStyle(.linear)
                         .tint(Color.smugglerYellow)
+                        .accessibilityLabel(
+                            String(localized: "Removing quarantine…", comment: "Compact status: processing")
+                        )
+                        .accessibilityValue(
+                            String(localized: "In progress", comment: "Accessibility value: work is still running")
+                        )
                 } else if style == .list {
+                    // Primary, not a grey: .secondary falls short of 4.5:1 at this
+                    // size, and this line is the answer the person came for. Held
+                    // to one line — the full text is a pointer or a popover away.
                     Text(statusDescription)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .font(.callout)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .help(statusDescription)
                 }
 
                 if style == .compact {
                     Text(statusText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .help(statusText)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: showsProgressBar)
 
             Spacer()
+
+            if canRevealInFinder {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([item.url])
+                } label: {
+                    Image(systemName: "folder")
+                        .foregroundStyle(.quaternary)
+                        .font(.body)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovered || revealFocused ? 1 : 0)
+                .focused($revealFocused)
+                .accessibilityLabel(
+                    String(localized: "Show in Finder", comment: "Accessibility label: reveal the file in Finder")
+                )
+                .help("Show in Finder")
+            }
 
             statusLabel
                 .contentTransition(.symbolEffect(.replace))
@@ -124,7 +173,7 @@ struct FileRowView: View {
             }
         }
         .padding(.vertical, style == .compact ? 6 : 8)
-        .padding(.horizontal, style == .compact ? 12 : 4)
+        .padding(.horizontal, style == .compact ? Self.compactHorizontalPadding : 4)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(isHovered ? Color.primary.opacity(0.04) : Color.clear)
@@ -140,6 +189,13 @@ struct FileRowView: View {
         .accessibilityElement(children: presentsAsFinished ? .ignore : .contain)
         .accessibilityLabel(presentsAsFinished ? "\(item.name), \(statusText)" : item.name)
         .accessibilityActions {
+            if canRevealInFinder {
+                Button(
+                    String(localized: "Show in Finder", comment: "Accessibility label: reveal the file in Finder")
+                ) {
+                    NSWorkspace.shared.activateFileViewerSelecting([item.url])
+                }
+            }
             if presentsAsFinished, item.status.hasErrors {
                 Button(
                     String(localized: "Show error details", comment: "Accessibility action: open the error popover")
@@ -206,9 +262,9 @@ struct FileRowView: View {
         case .processing:
             String(localized: "Processing…", comment: "File row status: currently processing")
         case .clean:
-            String(localized: "Quarantine removed successfully", comment: "File row status: success")
+            String(localized: "Freed — ready to use", comment: "File row status: success")
         case .alreadyClean:
-            String(localized: "Already clean — no quarantine present", comment: "File row status: had no quarantine")
+            String(localized: "Not in quarantine — nothing to do", comment: "File row status: had no quarantine")
         case .partialSuccess(let cleaned, let errors):
             String(
                 localized: "\(cleaned) freed, \(errors.count) could not be processed",
@@ -233,14 +289,14 @@ struct FileRowView: View {
                 .foregroundStyle(.green)
                 .font(.body)
                 .accessibilityLabel(
-                    String(localized: "Freed from quarantine", comment: "Compact status: success"))
+                    String(localized: "Freed — ready to use", comment: "Compact status: success"))
 
         case .alreadyClean:
             Image(systemName: "checkmark.circle")
                 .foregroundStyle(.secondary)
                 .font(.body)
                 .accessibilityLabel(
-                    String(localized: "Already clean", comment: "Compact status: had no quarantine"))
+                    String(localized: "Not in quarantine", comment: "Compact status: had no quarantine"))
 
         case .partialSuccess(let cleaned, let errors):
             Button {
@@ -286,18 +342,21 @@ struct FileRowView: View {
                 String(localized: "Show error details", comment: "Accessibility action: open the error popover")
             )
             .popover(isPresented: $showErrorPopover, arrowEdge: .trailing) {
-                errorPopoverContent(
-                    message: error.errorDescription
-                        ?? String(localized: "An error occurred", comment: "Fallback error message")
-                )
+                errorPopoverContent(error: error)
             }
         }
     }
 
-    private func errorPopoverContent(message: String) -> some View {
+    private func errorPopoverContent(error: QuarantineError) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(message)
-                .font(.callout)
+            Text(error.errorDescription ?? String(localized: "An error occurred", comment: "Fallback error message"))
+                .font(.callout.weight(.medium))
+
+            if let recovery = error.recoverySuggestion {
+                Text(recovery)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(12)
         .frame(maxWidth: 340)
@@ -306,15 +365,33 @@ struct FileRowView: View {
 
     private static let popoverErrorLimit = 20
 
+    private func freedLine(_ cleaned: Int) -> String {
+        cleaned == 1
+            ? String(
+                localized: "1 item freed from quarantine.",
+                comment: "Error popover: exactly one item was freed")
+            : String(
+                localized: "\(cleaned) items freed from quarantine.",
+                comment: "Error popover: several items were freed")
+    }
+
+    private func failedLine(_ failed: Int) -> String {
+        failed == 1
+            ? String(
+                localized: "1 item could not be processed:",
+                comment: "Error popover: exactly one item failed, followed by its name")
+            : String(
+                localized: "\(failed) items could not be processed:",
+                comment: "Error popover: several items failed, followed by their names")
+    }
+
     private func partialSuccessPopoverContent(cleaned: Int, errors: [QuarantineFileError]) -> some View {
         let (shownErrors, hiddenCount) = errors.cappedPrefix(Self.popoverErrorLimit)
         return VStack(alignment: .leading, spacing: 8) {
-            Text(
-                String(
-                    localized: "\(cleaned) files freed from quarantine.\n\(errors.count) items could not be processed:",
-                    comment: "Error popover: partial success details, followed by the failing item names")
-            )
-            .font(.callout)
+            // Two sentences, each with its own count line: one string carrying both
+            // numbers cannot read correctly at one in either of them.
+            Text("\(freedLine(cleaned))\n\(failedLine(errors.count))")
+                .font(.callout)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
@@ -326,13 +403,9 @@ struct FileRowView: View {
                             .help(fileError.error.errorDescription ?? "")
                     }
                     if hiddenCount > 0 {
-                        Text(
-                            String(
-                                localized: "and \(hiddenCount) more files",
-                                comment: "Error popover: suffix when the failing-file list is truncated")
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(hiddenItemsLabel(hiddenCount))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -350,9 +423,9 @@ struct FileRowView: View {
         case .processing:
             String(localized: "Removing quarantine…", comment: "Compact status: processing")
         case .clean:
-            String(localized: "Freed from quarantine", comment: "Compact status: success")
+            String(localized: "Freed — ready to use", comment: "Compact status: success")
         case .alreadyClean:
-            String(localized: "Already clean", comment: "Compact status: had no quarantine")
+            String(localized: "Not in quarantine", comment: "Compact status: had no quarantine")
         case .partialSuccess(let cleaned, let errors):
             String(
                 localized: "\(cleaned) freed, \(errors.count) failed",
@@ -392,9 +465,9 @@ struct FileRowView: View {
     let url = URL(filePath: "/Applications/Safari.app")
     VStack(spacing: 0) {
         FileRowView(item: FileItem(url: url, status: .processing), style: .compact)
-        Divider().padding(.leading, 44)
+        Divider().padding(.leading, FileRowView.compactTextInset)
         FileRowView(item: FileItem(url: url, status: .clean), style: .compact)
-        Divider().padding(.leading, 44)
+        Divider().padding(.leading, FileRowView.compactTextInset)
         FileRowView(item: FileItem(url: url, status: .error(.permissionDenied(url))), style: .compact)
     }
     .frame(width: 340)

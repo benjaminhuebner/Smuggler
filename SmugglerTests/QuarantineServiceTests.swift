@@ -177,9 +177,12 @@ struct QuarantineServiceTests {
             try? FileManager.default.removeItem(at: target)
         }
 
-        #expect(throws: QuarantineError.self) {
+        // Its own case, not invalidURL: the link exists and can be revealed, and
+        // the way out is to drag in what it points at.
+        #expect(throws: QuarantineError.symbolicLink(link)) {
             _ = try service.removeQuarantineRecursively(link)
         }
+        #expect(!QuarantineError.symbolicLink(link).refersToMissingFile)
     }
 
     @Test("Descends into subdirectories and skips symlinks instead of following them")

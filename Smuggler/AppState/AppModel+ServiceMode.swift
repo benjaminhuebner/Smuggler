@@ -24,15 +24,22 @@ extension AppModel {
         // and supersession must follow arrival order, not filter latency.
         let task = Task { [previous = incomingRequestTask] in
             defer { liveRequestTasks.removeValue(forKey: requestID) }
+            // Read before waiting on the queue ahead, for the same reason the
+            // token is consumed on arrival: the batch expires 60s after the
+            // extension wrote it, and a dialog ahead of us outlives that.
+            let requested = await IncomingRequest.requestedURLs(for: request)
             await previous?.value
             guard !Task.isCancelled else { return }
-            let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: request.urls)
+            guard case .urls(let requestedURLs) = requested else {
+                await reportUnreadableBatch(quitAfter: quitAfter, requestID: requestID)
+                return
+            }
+            let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: requestedURLs)
             guard !Task.isCancelled else { return }
             guard !urls.isEmpty else {
                 // A headless launch must honor its quit contract even when every
-                // path was dropped — unless a later request is already queued
-                // behind it, which would die with the app before it ran.
-                if quitAfter, requestID == lastRequestID { terminate() }
+                // path was dropped.
+                quitIfStillCurrent(quitAfter: quitAfter, requestID: requestID)
                 return
             }
             handleURLRequest(
@@ -46,6 +53,20 @@ extension AppModel {
         liveRequestTasks[requestID] = task
         incomingRequestTask = task
         return task
+    }
+
+    // The paths never arrived, so there is no row to fail and nothing to show in
+    // the window; the notification is the only place this can surface.
+    private func reportUnreadableBatch(quitAfter: Bool, requestID: Int) async {
+        await notifyFailure()
+        quitIfStillCurrent(quitAfter: quitAfter, requestID: requestID)
+    }
+
+    // Only the newest request may end the session. Every exit here sits after a
+    // suspension, and a request that arrived meanwhile would die with the app
+    // before it ran.
+    private func quitIfStillCurrent(quitAfter: Bool, requestID: Int) {
+        if quitAfter, requestID == lastRequestID { terminate() }
     }
 
     // A URL the parser rejected still carries its sender's quit contract: a cold
