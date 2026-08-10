@@ -1,58 +1,31 @@
 {
-  "fill" : "system-dark",
-  "groups" : [
+  "fill-specializations" : [
     {
-      "blur-material" : 0.5,
-      "hidden" : false,
-      "layers" : [
-        {
-          "glass" : true,
-          "image-name" : "Pfad Kopie.svg",
-          "name" : "Pfad Kopie",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              3,
-              -0.02627563743999417
-            ]
-          }
-        },
-        {
-          "glass" : true,
-          "image-name" : "Pfad Kopie 2.svg",
-          "name" : "Pfad Kopie 2",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0.12349530722167401,
-              26.527156585331
-            ]
-          }
-        }
-      ],
-      "position" : {
-        "scale" : 0.925,
-        "translation-in-points" : [
-          0,
-          0
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.19608,0.19608,0.19608,1.00000",
+          "srgb:0.07451,0.07451,0.07451,1.00000"
         ]
-      },
-      "shadow" : {
-        "kind" : "layer-color",
-        "opacity" : 0.5
-      },
-      "specular" : false,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
       }
     },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [
+          "srgb:0.13000,0.13000,0.13000,1.00000",
+          "srgb:0.03500,0.03500,0.03500,1.00000"
+        ]
+      }
+    }
+  ],
+  "groups" : [
     {
       "blur-material" : null,
       "layers" : [
         {
-          "image-name" : "Gruppe Kopie.svg",
-          "name" : "Gruppe Kopie",
+          "glass" : true,
+          "image-name" : "4_Tape_Front.svg",
+          "name" : "Tape Front",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -62,42 +35,178 @@
           }
         }
       ],
+      "name" : "Tape Front",
       "position" : {
-        "scale" : 0.94,
+        "scale" : 1.05,
         "translation-in-points" : [
-          0,
-          0
+          6.7,
+          -1.8
+        ]
+      },
+      "shadow-specializations" : [
+        {
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.5
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "kind" : "neutral",
+            "opacity" : 0.5
+          }
+        }
+      ],
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "extended-gray:0.06000,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "image-name" : "3_Eyes.svg",
+          "name" : "Eyes",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "name" : "Eyes",
+      "position" : {
+        "scale" : 1.05,
+        "translation-in-points" : [
+          6.7,
+          -1.8
+        ]
+      },
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : 0.45,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "extended-gray:1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "2_Ghost.svg",
+          "name" : "Ghost",
+          "opacity-specializations" : [
+            {
+              "value" : 0.72
+            },
+            {
+              "appearance" : "dark",
+              "value" : 0.8
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 1
+            }
+          ],
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "name" : "Ghost",
+      "position" : {
+        "scale" : 1.05,
+        "translation-in-points" : [
+          6.7,
+          -1.8
         ]
       },
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.6
-      }
+      "specular" : true,
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.4
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : false,
+            "value" : 0.4
+          }
+        }
+      ]
     },
     {
-      "hidden" : false,
+      "blur-material" : null,
       "layers" : [
         {
-          "image-name" : "Pfad Kopie 3.svg",
-          "name" : "Pfad Kopie 3",
+          "glass" : true,
+          "image-name" : "1_Tape_Back.svg",
+          "name" : "Tape Back",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              0.23488695713768948,
-              -91.06564674031392
+              0,
+              0
             ]
           }
         }
       ],
+      "name" : "Tape Back",
       "position" : {
-        "scale" : 0.925,
+        "scale" : 1.05,
         "translation-in-points" : [
-          0,
-          0
+          6.7,
+          -1.8
         ]
       },
       "shadow" : {
