@@ -153,7 +153,10 @@ struct FileRowView: View {
                 .contentTransition(.symbolEffect(.replace))
                 .animation(.easeInOut(duration: 0.3), value: displayStatus)
 
-            if item.status == .processing, let onCancel {
+            // Lagged like the rest of the row: keyed on the real status the button
+            // would leave mid finishing fill and its freed width briefly widens
+            // the bar. Cancelling a finished item is a no-op in the model.
+            if showsProgressBar, let onCancel {
                 Button {
                     onCancel()
                 } label: {
@@ -203,7 +206,7 @@ struct FileRowView: View {
                     showErrorPopover = true
                 }
             }
-            if item.status == .processing, let onCancel {
+            if showsProgressBar, let onCancel {
                 Button(
                     String(localized: "Cancel processing", comment: "Accessibility label: cancel button on a row")
                 ) {
