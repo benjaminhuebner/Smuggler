@@ -1,103 +1,126 @@
-<img src="Docs/icon.png" width="92" align="left" hspace="18" vspace="2" alt="Smuggler app icon">
+<div align="center">
+
+<img src="Docs/icon.png" width="128" alt="Smuggler app icon">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="Docs/title-dark.png">
-  <img src="Docs/title-light.png" alt="Smuggler" height="48">
+  <img src="Docs/title-light.png" alt="Smuggler" height="44">
 </picture>
 
-**Free your downloaded files from macOS quarantine — without ever touching the Terminal.**
+**Free downloaded files from macOS quarantine. No Terminal, no `xattr`.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE) [![Platform: macOS 26+](https://img.shields.io/badge/platform-macOS%2026%2B-blue?style=flat-square)](#requirements) [![Swift 6](https://img.shields.io/badge/Swift-6-orange?style=flat-square)](#requirements)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE) [![Platform: macOS 26+](https://img.shields.io/badge/platform-macOS%2026%2B-blue?style=flat-square)](#install) [![Swift 6](https://img.shields.io/badge/Swift-6-orange?style=flat-square)](#built-with) [![Latest release](https://img.shields.io/github/v/release/benjaminhuebner/Smuggler?style=flat-square&color=orange)](https://github.com/benjaminhuebner/Smuggler/releases/latest)
 
-*Drag a file in, right-click it in Finder, or pick it from a dialog — Smuggler removes the "downloaded from the internet" flag so your file just opens. No `xattr`, no jargon, no scary warnings.*
+[Why](#why-macos-refuses-to-open-your-downloads) · [Three ways in](#three-ways-in) · [What it touches](#what-it-touches) · [Install](#install) · [FAQ](#faq) · [Built with](#built-with)
 
-<p align="center">
-  <a href="Docs/demo.gif"><img src="Docs/demo.gif" width="640" alt="Smuggler: a file is dropped into the window, processed, and reported as freed"></a>
-</p>
+</div>
 
----
+<a href="Docs/screenshots/hero.png"><img src="Docs/screenshots/hero.png" width="100%" alt="The Smuggler window while four downloaded files are dropped in. The hazard tape around the drop zone lights up yellow and reads Release to free from quarantine, each file then runs through a short progress bar, and every row ends on: Freed — ready to use."></a>
 
-## Contents
+**Smuggler is a free, open-source macOS app that removes the `com.apple.quarantine` attribute from files and folders.** That attribute is the reason macOS refuses to open your downloads cleanly. Drag them into the window, right-click them in Finder or start Smuggler from the Services menu. It clears that one attribute and leaves everything else on disk untouched.
 
-- [About](#about)
-- [Who it's for](#who-its-for)
-- [Features](#features)
-- [How it works](#how-it-works)
-- [What it never does](#what-it-never-does)
-- [Requirements](#requirements)
-- [Built with](#built-with)
-- [License](#license)
+## Why macOS refuses to open your downloads
 
----
+Files you download arrive with a hidden `com.apple.quarantine` attribute. That tag is what stands between you and the file:
 
-## About
+- *"…is an app downloaded from the Internet. Are you sure you want to open it?"*
+- *"…cannot be opened because the developer cannot be verified."*
+- *"…is damaged and can't be opened. You should move it to the Trash."* — which usually means nothing is damaged at all, only that the app is not signed the way Gatekeeper expects.
 
-When you download a file, macOS tags it with a hidden `com.apple.quarantine`
-attribute. That tag is what triggers the *"…is an app downloaded from the
-Internet, are you sure you want to open it?"* prompts — and sometimes the harder
-*"cannot be opened because the developer cannot be verified"* wall.
-
-The usual fix is an obscure Terminal command nobody should have to memorize:
+The usual fix is a command copied from a forum post:
 
 ```sh
-xattr -d com.apple.quarantine /path/to/your/file
+xattr -d com.apple.quarantine ~/Downloads/Installer.dmg
+xattr -dr com.apple.quarantine ~/Downloads/SomeFolder
 ```
 
-Smuggler replaces that with a single, friendly action. The interface stays
-plain-spoken and reassuring: no "extended attributes", no "bypass macOS
-security" framing — just a clear *"this is ready to open now."*
+Smuggler does the same thing by drag and drop. It removes that one attribute, writes nothing else and stays clear of jargon: no *extended attributes*, no talk of bypassing anything, just a row that reads *Freed — ready to use*.
 
-## Who it's for
-
-Everyday Mac users who don't live in the Terminal and just want a downloaded
-file, app, or folder to open without a fight. If you've ever pasted an `xattr`
-command from a forum post and hoped for the best, Smuggler is for you.
-
-## Features
+## Three ways in
 
 <table>
-  <tr>
-    <td width="50%" valign="top">
-      <a href="Docs/screenshots/drop.png"><img src="Docs/screenshots/drop.png" width="100%" alt="Smuggler's drop zone"></a>
-      <p><strong>Drag, drop, done</strong><br>Drop files or folders onto the window — or pick them with <kbd>⌘O</kbd> — and Smuggler frees each one. No command to remember.</p>
-    </td>
-    <td width="50%" valign="top">
-      <a href="Docs/screenshots/finder.png"><img src="Docs/screenshots/finder.png" width="100%" alt="Smuggler's Remove Quarantine items in the Finder right-click menu"></a>
-      <p><strong>Right in Finder</strong><br>Right-click any file and choose <em>Remove Quarantine</em> or <em>Remove Quarantine and Open</em> — the items appear only when the selection is actually quarantined.</p>
-    </td>
-  </tr>
+<tr>
+<td width="50%" valign="top">
+<a href="Docs/screenshots/drop-zone.png"><img src="Docs/screenshots/drop-zone.png" width="100%" alt="The Smuggler window with an empty drop zone framed by grey hazard stripes. It reads Drop files to remove quarantine, below that Drag files or folders here, or choose them manually, and a yellow Choose Files button."></a>
+</td>
+<td width="50%" valign="top">
+<a href="Docs/screenshots/finder.png"><img src="Docs/screenshots/finder.png" width="100%" alt="A Finder window showing the Downloads folder with Installer.dmg selected. Its right-click menu is open on a Smuggler submenu with two entries: Remove Quarantine and Open, and Remove Quarantine."></a>
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**The window.** Drop files and folders in, or pick them with <kbd>⌘O</kbd>. Drop as many as you like, and folders are cleared all the way down. Each item runs on its own: cancel one and the rest carry on, or stop the whole batch.
+
+</td>
+<td valign="top">
+
+**Finder.** Right-click anything and choose *Remove Quarantine* or *Remove Quarantine and Open*. The menu appears only when the selection carries the tag.
+
+</td>
+</tr>
 </table>
 
-- **Folders, recursively** — point Smuggler at a folder and it clears every file
-  inside it, not just the folder itself.
-- **Batch at once** — select as many files and folders as you like; each is
-  processed independently and can be cancelled mid-flight.
-- **Quiet when invoked from Finder** — headless actions report their result with
-  a native notification, then get out of your way.
-- **Open with confidence** — *Remove Quarantine and Open* always asks for a final
-  human confirmation before launching anything.
-- **Stays current** — built-in auto-updates via Sparkle.
+**The Services menu.** *Remove Quarantine with Smuggler* sits in the Services menu of every app. That path stays out of the way: a small window shows progress, a notification tells you how it went, then Smuggler quits.
 
-## How it works
+## What it touches
 
-Smuggler removes exactly one piece of metadata — the `com.apple.quarantine`
-extended attribute — and nothing else. Your files are never moved, copied,
-renamed, opened, or altered in any other way. Removing the flag is the same
-operation Gatekeeper would perform the first time *you* approve a file; Smuggler
-just lets you do it deliberately, up front, on the files you choose.
+Exactly one attribute, on the files you point it at. Nothing is moved, copied, renamed, opened or altered in content. Removing the tag is the same thing Gatekeeper does the first time you approve a file — Smuggler just lets you do it up front.
 
-## Requirements
+Two refusals are deliberate:
 
-- **macOS 26** or later.
+- Smuggler refuses protected system trees (`/System`, `/usr`, the LaunchDaemon directories) at every entry point.
+- It never follows symlinks, so an alias cannot smuggle a blocked path past that check.
 
-Smuggler is distributed directly (not via the Mac App Store) and is signed with a
-Developer ID and notarized by Apple.
+> [!IMPORTANT]
+> *Remove Quarantine and Open* asks before it launches anything. Any process on your Mac can call the `smuggler://` scheme, so a request that cannot prove it came from the Finder extension ends up in that confirmation dialog instead of quietly starting a binary.
+
+## Install
+
+Smuggler needs **macOS 26** or later.
+
+Download `Smuggler.dmg` from the [releases page](https://github.com/benjaminhuebner/Smuggler/releases/latest), open it and drag Smuggler to `/Applications`. The app is signed with a Developer ID and notarized, and it updates itself through Sparkle.
+
+For the Finder menu, open System Settings → General → Login Items & Extensions and switch Smuggler on under Finder extensions.
+
+> [!NOTE]
+> Smuggler itself opens on first launch without any of the friction it exists to remove: it is notarized, so Gatekeeper lets it through. It will never appear on the Mac App Store, because clearing an attribute on arbitrary paths needs an app that is not sandboxed.
+
+## FAQ
+
+### Is it safe to remove the quarantine attribute?
+
+It is the same approval macOS asks you for the first time you open a downloaded file, on the files you picked yourself. Nothing else about them changes. The judgement stays yours: clear what you downloaded on purpose, from a source you trust.
+
+### Does Smuggler switch off Gatekeeper or SIP?
+
+No. Gatekeeper, SIP and every other protection on your Mac keep running as before. Smuggler removes one attribute from the paths you hand it, refuses protected system trees at every entry point, and ships no command line tool and no scripting interface.
+
+### Why not just run `xattr` in Terminal?
+
+You can, and it does the same job. Smuggler is for the people who should not have to: nothing to copy, no path to type or escape, and no risk of running a command from a forum post that turns out to do more than it says.
+
+### Does it handle folders and large batches?
+
+Yes. Drop in as many files and folders as you like; folders are cleared all the way down. Every item runs on its own, so one failure does not take the batch with it. You can cancel a single item mid-flight or stop everything at once.
+
+### Which macOS versions are supported?
+
+macOS 26 and later; older releases are not supported. The window and the Services entry work as soon as the app sits in `/Applications`. The Finder menu needs one switch in System Settings → General → Login Items & Extensions.
+
+### What does it cost?
+
+Nothing. Smuggler is open source under the MIT license, with no account, no in-app purchase and no paid tier. The full source of both bundles is in this repository.
 
 ## Built with
 
+Smuggler is a SwiftUI app in two bundles that share an app group: the unsandboxed app and a sandboxed FinderSync extension. That split is not optional — `removexattr()` on arbitrary paths requires no sandbox, and Finder extensions are always sandboxed. Third-party dependencies:
 
-- [Sparkle](https://github.com/sparkle-project/Sparkle) (In-app software updates)
+| Dependency | What it's for |
+| --- | --- |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) | In-app software updates |
 
+Everything else is Apple frameworks: Swift 6 under strict concurrency, SwiftUI with AppKit where the platform calls for it. The interface ships in English and German.
 
 ## License
 
