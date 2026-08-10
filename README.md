@@ -15,7 +15,7 @@
 
 </div>
 
-<a href="Docs/screenshots/hero.png"><img src="Docs/screenshots/hero.png" width="100%" alt="The Smuggler window while four downloaded files are dropped in. The hazard tape around the drop zone lights up yellow and reads Release to free from quarantine, each file then runs through a short progress bar, and every row ends on: Freed — ready to use."></a>
+<a href="Docs/screenshots/hero.png"><img src="Docs/screenshots/hero.png" width="100%" alt="The Smuggler window while four downloaded files are dropped in. The hazard tape around the drop zone turns yellow and snaps open at both sides, the zone reads Release to free from quarantine, each file then runs through a short progress bar, and every row ends on: Freed — ready to use."></a>
 
 **Smuggler is a free, open-source macOS app that removes the `com.apple.quarantine` attribute from files and folders.** That attribute is the reason macOS refuses to open your downloads cleanly. Drag them into the window, right-click them in Finder or start Smuggler from the Services menu. It clears that one attribute and leaves everything else on disk untouched.
 
