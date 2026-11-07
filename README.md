@@ -44,7 +44,7 @@ Smuggler does the same thing by drag and drop. It removes that one attribute, wr
 <a href="Docs/screenshots/drop-zone.png"><img src="Docs/screenshots/drop-zone.png" width="100%" alt="The Smuggler window with an empty drop zone framed by grey hazard stripes. It reads Drop files to remove quarantine, below that Drag files or folders here, or choose them manually, and a yellow Choose Files button."></a>
 </td>
 <td width="50%" valign="top">
-<a href="Docs/screenshots/finder.png"><img src="Docs/screenshots/finder.png" width="100%" alt="A Finder window showing the Downloads folder with Installer.dmg selected. Its right-click menu is open on a Smuggler submenu with two entries: Remove Quarantine and Open, and Remove Quarantine."></a>
+<a href="Docs/screenshots/finder.png"><img src="Docs/screenshots/finder.png" width="100%" alt="A Finder window showing the Downloads folder with Installer.dmg selected. Its right-click menu is open on a Smuggler submenu with two entries: Remove Quarantine and Open, and Remove Quarantine. Below the submenu, the same menu lists the Services entry Remove Quarantine with Smuggler."></a>
 </td>
 </tr>
 <tr>
