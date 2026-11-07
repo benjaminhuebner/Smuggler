@@ -1,7 +1,6 @@
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/
 Package.resolved
 !*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
@@ -39,7 +38,7 @@ DerivedData/
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
+Icon[]
 ._*
 .DocumentRevisions-V100
 .fseventsd

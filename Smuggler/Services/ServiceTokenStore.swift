@@ -9,41 +9,22 @@ nonisolated struct ServiceTokenStore: Sendable {
     // Must survive a slow cold launch (Gatekeeper scan, app translocation)
     // between issue and consumption. Tokens are single-use, so this only
     // bounds how long a leaked-but-unconsumed token stays valid.
-    static let defaultMaxAge: TimeInterval = 60
+    static let maxAge: TimeInterval = 60
 
-    private let tokensDirectory: URL?
+    private let store: SingleUseFileStore
 
     init(
         containerURL: URL? = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ServiceTokenStore.appGroupID)
     ) {
-        tokensDirectory = containerURL?.appending(path: "ServiceTokens", directoryHint: .isDirectory)
+        store = SingleUseFileStore(containerURL: containerURL, subdirectory: "ServiceTokens", maxAge: Self.maxAge)
     }
 
     func issueToken() -> String? {
-        guard let tokensDirectory else { return nil }
-        let token = UUID().uuidString
-        do {
-            try FileManager.default.createDirectory(at: tokensDirectory, withIntermediateDirectories: true)
-            ServiceDropDirectory.pruneStaleFiles(in: tokensDirectory, olderThan: Self.defaultMaxAge)
-            try Data().write(to: tokensDirectory.appending(path: token))
-        } catch {
-            return nil
-        }
-        return token
+        store.issue(Data())
     }
 
-    func consumeToken(_ token: String, maxAge: TimeInterval = ServiceTokenStore.defaultMaxAge) -> Bool {
-        // The UUID parse also guards against path traversal via the query parameter.
-        guard let tokensDirectory, UUID(uuidString: token) != nil else { return false }
-        let file = tokensDirectory.appending(path: token)
-        guard
-            let issuedAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
-        else { return false }
-
-        // Delete first so even a stale token cannot be presented twice; if the
-        // delete fails the file would stay presentable, so fail closed.
-        guard (try? FileManager.default.removeItem(at: file)) != nil else { return false }
-        return Date().timeIntervalSince(issuedAt) <= maxAge
+    func consumeToken(_ token: String) -> Bool {
+        store.consume(token) != nil
     }
 }

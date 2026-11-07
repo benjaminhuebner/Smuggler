@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 import os
@@ -11,56 +10,63 @@ final class AppModel {
         case remove
     }
 
+    nonisolated struct RunProgress: Equatable, Sendable {
+        let done: Int
+        let total: Int
+    }
+
     typealias ConfirmHandler = @MainActor ([URL], ConfirmKind) -> Bool
     typealias OpenHandler = @MainActor ([URL]) -> Void
     typealias TerminateHandler = @MainActor () -> Void
     typealias AuthorizeHandler = @MainActor () async -> Void
     typealias NotifyHandler = @MainActor ([FileItem]) async -> Void
     typealias NotifyFailureHandler = @MainActor () async -> Void
+    typealias SessionStaysHandler = @MainActor () -> Void
+
+    // Every effect beyond the model's own state — the alert, launching, termination,
+    // notifications, what a session that stays starts — arrives injected: the model
+    // never meets AppKit, and no test can reach a modal by forgetting a stub.
+    struct Handlers {
+        let confirm: ConfirmHandler
+        let open: OpenHandler
+        let terminate: TerminateHandler
+        let authorize: AuthorizeHandler
+        let notify: NotifyHandler
+        let notifyFailure: NotifyFailureHandler
+        let sessionStays: SessionStaysHandler
+    }
 
     // Minimum visible processing duration so the user sees the app working.
     let minimumProcessingDuration: Duration
 
     let processingTimeout: Duration
 
-    // Side-effect boundaries (alert, NSWorkspace, app termination) are injectable
-    // so the service-mode flows can be tested with recording handlers.
-    let confirm: ConfirmHandler
-    let open: OpenHandler
-    let terminate: TerminateHandler
-    let authorize: AuthorizeHandler
-    let notify: NotifyHandler
-    let notifyFailure: NotifyFailureHandler
+    // How long a finished or declined headless session lingers before it quits:
+    // the result notification has to land, and a follow-up request gets its
+    // chance to take the session over instead of dying with it.
+    let terminationGrace: Duration
+
+    let handlers: Handlers
     let tokenStore: ServiceTokenStore
+    let batchStore: ServiceBatchStore
+    private let walkExecutor: any TaskExecutor
 
     init(
-        minimumProcessingDuration: Duration = .seconds(1.0),
+        handlers: Handlers,
+        tokenStore: ServiceTokenStore,
+        batchStore: ServiceBatchStore,
+        minimumProcessingDuration: Duration = .seconds(1),
         processingTimeout: Duration = .seconds(30),
-        confirm: ConfirmHandler? = nil,
-        open: OpenHandler? = nil,
-        terminate: TerminateHandler? = nil,
-        authorize: AuthorizeHandler? = nil,
-        notify: NotifyHandler? = nil,
-        notifyFailure: NotifyFailureHandler? = nil,
-        tokenStore: ServiceTokenStore = ServiceTokenStore()
+        terminationGrace: Duration = .milliseconds(800),
+        walkExecutor: any TaskExecutor = WalkExecutor()
     ) {
+        self.handlers = handlers
+        self.tokenStore = tokenStore
+        self.batchStore = batchStore
         self.minimumProcessingDuration = minimumProcessingDuration
         self.processingTimeout = processingTimeout
-        self.tokenStore = tokenStore
-        self.confirm = confirm ?? Self.confirmViaAlert
-        self.open =
-            open ?? { urls in
-                for url in urls {
-                    if !NSWorkspace.shared.open(url) {
-                        Self.logger.error(
-                            "Failed to open \(url.path(percentEncoded: false), privacy: .private)")
-                    }
-                }
-            }
-        self.terminate = terminate ?? { NSApp.terminate(nil) }
-        self.authorize = authorize ?? { await NotificationService.requestAuthorization() }
-        self.notify = notify ?? { await NotificationService.postResult(items: $0) }
-        self.notifyFailure = notifyFailure ?? { await NotificationService.postRequestFailure() }
+        self.terminationGrace = terminationGrace
+        self.walkExecutor = walkExecutor
     }
 
     var items: [FileItem] = []
@@ -82,19 +88,20 @@ final class AppModel {
     // Maintained separately so `isProcessing` is O(1).
     private(set) var processingCount: Int = 0
 
+    // Every row that entered processing since the model was last idle. `items` can't
+    // size a run: it keeps earlier runs' rows and the paths refused at the door.
+    private var runRowIDs: Set<UUID> = []
+
+    var runTotal: Int { runRowIDs.count }
+
     private let service = QuarantineService()
     nonisolated private static let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler", category: "AppModel")
 
     var isProcessing: Bool { processingCount > 0 }
 
-    var freedCount: Int { items.freedCount }
-
-    var alreadyFreeCount: Int { items.alreadyFreeCount }
-
-    var failedCount: Int { items.failedCount }
-
-    var allCancelled: Bool {
-        !items.isEmpty && items.allSatisfy { $0.status == .cancelled }
+    // A run of one item has nothing to count.
+    var runProgress: RunProgress? {
+        runTotal > 1 ? RunProgress(done: runTotal - processingCount, total: runTotal) : nil
     }
 
     // MARK: - Enqueue & Process
@@ -125,20 +132,28 @@ final class AppModel {
             // stays the authoritative gate for anything a prefix cannot catch.
             let blocked = QuarantineService.hasBlockedPrefix(url)
             let status: FileStatus = blocked ? .error(.blockedPath(url)) : .processing
+            let id: UUID
             if let index = existingIndexByURL[url] {
                 items[index].status = status
-                entries.append((items[index].id, url))
+                items[index].processingSince = blocked ? nil : .now
+                id = items[index].id
             } else {
                 let item = FileItem(url: url, status: status)
                 newItems.append(item)
-                entries.append((item.id, url))
+                id = item.id
             }
+            entries.append((id, url))
             if blocked {
                 Self.logger.warning(
                     "Refusing blocked system path: \(url.path(percentEncoded: false), privacy: .private)")
             } else {
+                // Reset as a run starts, not as it ends: the status bar keeps showing
+                // the count while the last rows' fills land.
+                if processingCount == 0 { runRowIDs.removeAll() }
                 itemURLs.insert(url)
                 processingCount += 1
+                // A settled row dropped again re-enters the run, not a second item of it.
+                runRowIDs.insert(id)
             }
         }
         // Reversed so the batch reads newest-first, like one-at-a-time drops.
@@ -165,6 +180,7 @@ final class AppModel {
         guard !taskEntries.isEmpty || !tasksToAwait.isEmpty else { return }
 
         let service = self.service
+        let executor = walkExecutor
         let minimumDuration = minimumProcessingDuration
         let timeout = processingTimeout
 
@@ -172,83 +188,17 @@ final class AppModel {
         for (id, url) in taskEntries {
             let runID = UUID()
             let task = Task { [weak self] in
-                let start = ContinuousClock.now
+                // Held before the walk, not after it: a cancel inside the hold then
+                // stops work that has not begun instead of hiding a result on disk.
+                do { try await Task.sleep(for: minimumDuration) } catch { return }
+                guard self != nil, !Task.isCancelled else { return }
 
-                let status: FileStatus = await withTaskGroup(of: FileStatus.self) { inner in
-                    inner.addTask {
-                        // The blocking walk runs detached — off-main, cancellation
-                        // forwarded, one pool thread held per walk. The stream lets a
-                        // cancelled child abandon a walk wedged in a syscall.
-                        let (results, continuation) = AsyncStream.makeStream(of: FileStatus.self)
-                        let walk = Task.detached(priority: .userInitiated) {
-                            let status: FileStatus
-                            do {
-                                let result = try service.removeQuarantineRecursively(url, deadline: start + timeout)
-                                // A walk that ran out of time still freed what it
-                                // freed; the timeout joins the errors instead of
-                                // replacing a result the run actually achieved.
-                                var errors = result.errors
-                                if result.timedOut {
-                                    errors.append(QuarantineFileError(url: url, error: .timeout(url)))
-                                }
-                                if errors.isEmpty {
-                                    status = result.cleaned > 0 ? .clean : .alreadyClean
-                                } else if result.cleaned > 0 {
-                                    status = .partialSuccess(cleaned: result.cleaned, errors: errors)
-                                } else if result.timedOut {
-                                    // The deadline is why the rest was never visited;
-                                    // a per-file error would send the user after one
-                                    // file while the walk stopped for another reason.
-                                    status = .error(.timeout(url))
-                                } else {
-                                    status = .error(errors[0].error)
-                                }
-                            } catch let error as QuarantineError {
-                                status = .error(error)
-                            } catch {
-                                status = .error(.systemError(url, -1))
-                            }
-                            continuation.yield(status)
-                            continuation.finish()
-                        }
-                        return await withTaskCancellationHandler {
-                            await results.first(where: { _ in true }) ?? .error(.timeout(url))
-                        } onCancel: {
-                            walk.cancel()
-                            continuation.finish()
-                        }
-                    }
+                let status = await Self.outcome(of: url, service: service, executor: executor, timeout: timeout)
 
-                    // Backstop only. The walk stops itself at the deadline and
-                    // reports its partial result; this fires just for a walk
-                    // wedged inside a single syscall, which no loop check reaches.
-                    inner.addTask {
-                        try? await Task.sleep(for: timeout + .seconds(5))
-                        return .error(.timeout(url))
-                    }
-
-                    guard let first = await inner.next() else {
-                        return .error(.systemError(url, -1))
-                    }
-                    inner.cancelAll()
-                    return first
-                }
-
-                guard let self else { return }
-
-                let elapsed = ContinuousClock.now - start
-                if elapsed < minimumDuration {
-                    try? await Task.sleep(for: minimumDuration - elapsed)
-                }
-
-                guard activeTasks[id]?.runID == runID else { return }
+                guard let self, activeTasks[id]?.runID == runID else { return }
                 activeTasks.removeValue(forKey: id)
-                if let idx = items.firstIndex(where: { $0.id == id }),
-                    items[idx].status == .processing
-                {
-                    items[idx].status = status
-                    processingCount -= 1
-                    itemURLs.remove(url)
+                if let index = items.firstIndex(where: { $0.id == id }) {
+                    settle(rowAt: index, as: status)
                 }
             }
             activeTasks[id] = ActiveRun(runID: runID, task: task)
@@ -263,28 +213,77 @@ final class AppModel {
         }
     }
 
+    // The walk stops itself at its deadline and reports what it freed; the backstop is
+    // for a walk wedged in one syscall. Both start once the walk has a thread, so time
+    // spent queued behind other walks is not charged to it.
+    @concurrent
+    private nonisolated static func outcome(
+        of url: URL, service: QuarantineService, executor: any TaskExecutor, timeout: Duration
+    ) async -> FileStatus {
+        let (results, continuation) = AsyncStream.makeStream(of: FileStatus.self)
+        let walk = Task.detached(executorPreference: executor, priority: .userInitiated) {
+            let deadline = ContinuousClock.now + timeout
+            // Unstructured on purpose: a child task would inherit the walk executor and
+            // wake on the very threads a hung volume is holding.
+            let backstop = Task {
+                try await Task.sleep(until: deadline + .seconds(5), clock: .continuous)
+                continuation.yield(.error(.timeout(url)))
+            }
+            defer { backstop.cancel() }
+            do throws(QuarantineError) {
+                let result = try service.removeQuarantineRecursively(url, deadline: deadline)
+                continuation.yield(FileStatus(outcomeOf: result, for: url))
+            } catch {
+                continuation.yield(.error(error))
+            }
+            continuation.finish()
+        }
+        // Also when the backstop answered: a walk wedged short of its root, which no
+        // deadline guards, would otherwise free it after its row reads as timed out.
+        defer { walk.cancel() }
+        // A cancelled caller cannot interrupt a syscall, so it abandons the walk
+        // instead: finishing the stream returns at once.
+        return await withTaskCancellationHandler {
+            for await status in results {
+                return status
+            }
+            return .error(.timeout(url))
+        } onCancel: {
+            walk.cancel()
+            continuation.finish()
+        }
+    }
+
     // MARK: - Cancel
 
     func cancelAll() {
-        // Rows are enqueued as `.processing` before their tasks exist, so a batch
-        // cancelled in that window is reachable only through `items`.
-        var ids = Set(activeTasks.keys)
-        ids.formUnion(items.lazy.filter { $0.status == .processing }.map(\.id))
-        for id in ids {
-            cancel(id: id)
+        for run in activeTasks.values {
+            run.task.cancel()
+        }
+        activeTasks.removeAll()
+        // One pass over the rows, not a lookup per ID, which is quadratic on the main
+        // actor for a Finder batch of thousands. It also reaches rows enqueued as
+        // `.processing` before their tasks exist.
+        for index in items.indices {
+            settle(rowAt: index, as: .cancelled)
         }
     }
 
     func cancel(id: UUID) {
-        activeTasks[id]?.task.cancel()
-        activeTasks.removeValue(forKey: id)
-        if let idx = items.firstIndex(where: { $0.id == id }),
-            items[idx].status == .processing
-        {
-            items[idx].status = .cancelled
-            processingCount -= 1
-            itemURLs.remove(items[idx].url)
+        activeTasks.removeValue(forKey: id)?.task.cancel()
+        if let index = items.firstIndex(where: { $0.id == id }) {
+            settle(rowAt: index, as: .cancelled)
         }
+    }
+
+    // The one way out of `.processing`, so the in-flight count and the duplicate
+    // set cannot drift from the rows.
+    private func settle(rowAt index: Int, as status: FileStatus) {
+        guard items[index].status == .processing else { return }
+        items[index].status = status
+        items[index].processingSince = nil
+        processingCount -= 1
+        itemURLs.remove(items[index].url)
     }
 
     // MARK: - Service-Mode State
@@ -303,6 +302,10 @@ final class AppModel {
     var lastRequestID = 0
 
     var serviceMode: ServiceModeCoordinator?
+
+    var isServiceMode: Bool { serviceMode != nil }
+
+    var hasRequestsInFlight: Bool { !liveRequestTasks.isEmpty }
 
     // Tracks the handler task for non-quitAfter service requests so `clear()`
     // can cancel it; quitAfter tasks live on their coordinator instead.
@@ -328,5 +331,6 @@ final class AppModel {
         items.removeAll()
         itemURLs.removeAll()
         processingCount = 0
+        runRowIDs.removeAll()
     }
 }

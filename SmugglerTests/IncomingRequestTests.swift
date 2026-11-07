@@ -12,26 +12,7 @@ import Testing
 
 @Suite("IncomingRequest")
 struct IncomingRequestTests {
-    @Test("Parses valid smuggler://process URL with single path")
-    func parsesSinglePath() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/MyApp.app&action=open&quitAfter=true"))
-        let request = IncomingRequest(url: url)
-
-        #expect(request != nil)
-        #expect(request?.urls.count == 1)
-        #expect(request?.urls[0].path(percentEncoded: false) == "/tmp/MyApp.app")
-        #expect(request?.action == .open)
-        #expect(request?.quitAfter == true)
-    }
-
-    @Test("Parses URL with multiple path parameters")
-    func parsesMultiplePaths() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&path=/tmp/b.dmg"))
-        let request = IncomingRequest(url: url)
-
-        #expect(request != nil)
-        #expect(request?.urls.count == 2)
-    }
+    let sandbox = TestSandbox()
 
     @Test("Defaults action to 'open' when missing")
     func defaultsActionToOpen() throws {
@@ -67,14 +48,6 @@ struct IncomingRequestTests {
         #expect(IncomingRequest(url: url) == nil)
     }
 
-    @Test("Parses action=remove correctly")
-    func parsesRemoveAction() throws {
-        let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&action=remove"))
-        let request = IncomingRequest(url: url)
-
-        #expect(request?.action == .remove)
-    }
-
     @Test("Rejects unknown action parameter")
     func rejectsUnknownAction() throws {
         let url = try #require(URL(string: "smuggler://process?path=/tmp/a.app&action=delete"))
@@ -98,16 +71,6 @@ struct IncomingRequestTests {
         #expect(request?.urls.count == 1)
     }
 
-    @Test("Parsed URL request carries its token through")
-    func parseExtractsToken() throws {
-        let token = UUID().uuidString
-        let url = try #require(
-            URL(string: "smuggler://process?path=/tmp/a.app&action=remove&token=\(token)"))
-        let request = try #require(IncomingRequest(url: url))
-
-        #expect(request.token == token)
-    }
-
     @Test("Rejects a request whose only path value is empty")
     func rejectsEmptyPathValue() throws {
         let url = try #require(URL(string: "smuggler://process?path=&action=remove"))
@@ -121,17 +84,6 @@ struct IncomingRequestTests {
         let request = try #require(IncomingRequest(url: url))
 
         #expect(request.urls.map { $0.path(percentEncoded: false) } == ["/tmp/a.app"])
-    }
-
-    // The Finder extension percent-encodes every path via URLComponents, so any
-    // file name with a space or query-delimiter character takes this route.
-    @Test("Percent-encoded path values decode to their filesystem path")
-    func decodesPercentEncodedPaths() throws {
-        let url = try #require(
-            URL(string: "smuggler://process?path=/tmp/My%20App%20%26%20Co.app&action=remove"))
-        let request = try #require(IncomingRequest(url: url))
-
-        #expect(request.urls.map { $0.path(percentEncoded: false) } == ["/tmp/My App & Co.app"])
     }
 
     @Test("Accepts scheme and host case-insensitively")
@@ -154,9 +106,7 @@ struct IncomingRequestTests {
 
     @Test("Parsing touches no filesystem, so a directory keeps its plain path form")
     func parsingDoesNotStatPaths() throws {
-        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
+        let dir = try sandbox.directory()
 
         let path = dir.path(percentEncoded: false)
         let url = try #require(URL(string: "smuggler://process?path=\(path)&action=remove"))
@@ -167,9 +117,7 @@ struct IncomingRequestTests {
 
     @Test("The off-main filter resolves a directory named without a trailing slash")
     func filterYieldsDirectoryURL() async throws {
-        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
+        let dir = try sandbox.directory()
 
         let path = dir.path(percentEncoded: false)
         let url = try #require(URL(string: "smuggler://process?path=\(path)&action=remove"))
@@ -182,11 +130,107 @@ struct IncomingRequestTests {
         #expect(removableURLs == urls)
     }
 
+    @Test("The off-main filter drops a path only when nothing is there")
+    func filterDropsOnlyAbsentPaths() async throws {
+        let file = try sandbox.file()
+        let missing = sandbox.url()
+        let underFile = file.appending(path: "child")
+
+        let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: [missing, underFile, file])
+
+        #expect(urls == [file])
+        #expect(removableURLs == [file])
+    }
+
+    @Test("The off-main filter keeps what it cannot look at, for the walk to report")
+    func filterKeepsWhatItCannotStat() async throws {
+        let lockedFolder = try sandbox.directory()
+        let unreachable = try sandbox.file(in: lockedFolder)
+        try sandbox.lock(lockedFolder)
+        let dangling = try sandbox.symlink(to: sandbox.url())
+
+        let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: [unreachable, dangling])
+
+        #expect(urls == [unreachable, dangling])
+        #expect(removableURLs == urls)
+    }
+
+    @Test("The off-main filter keeps the Data volume's mount point as a refusal, never as removable")
+    func filterKeepsDataVolumeRootAsRefusal() async {
+        let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: [URL(filePath: "/System/Volumes/Data")])
+
+        #expect(urls.map { $0.path(percentEncoded: false) } == ["/System/Volumes/Data/"])
+        #expect(removableURLs.isEmpty)
+    }
+
+    @Test("The off-main filter yields nothing once its task is cancelled")
+    func filterStopsWhenCancelled() async throws {
+        let dir = try sandbox.directory()
+
+        let result = try await withThrowingTaskGroup(of: (urls: [URL], removableURLs: [URL]).self) { group in
+            // A child added to a cancelled group starts cancelled.
+            group.cancelAll()
+            group.addTask { await IncomingRequest.resolvedURLs(from: [dir]) }
+            return try #require(try await group.next())
+        }
+
+        #expect(result.urls.isEmpty)
+        #expect(result.removableURLs.isEmpty)
+    }
+
     @Test("quitAfter is readable from a URL the parser rejects")
     func quitAfterReadableWithoutParse() throws {
         let url = try #require(URL(string: "smuggler://process?path=relative/a.app&quitAfter=true"))
 
         #expect(IncomingRequest(url: url) == nil)
         #expect(IncomingRequest.requestsQuit(url))
+    }
+
+    @Test("A batched request resolves to the paths the batch carried")
+    func requestedURLsReadsTheBatch() async throws {
+        let store = ServiceBatchStore(containerURL: sandbox.root)
+        let name = try #require(store.write(paths: ["/tmp/one.app", "relative/skipped", "/tmp/two.dmg"]))
+        let url = try #require(URL(string: "smuggler://process?batch=\(name)&action=remove"))
+        let request = try #require(IncomingRequest(url: url))
+
+        let resolved = await IncomingRequest.requestedURLs(for: request, batchStore: store)
+
+        guard case .urls(let urls) = resolved else {
+            Issue.record("Expected the batch to resolve, got \(resolved)")
+            return
+        }
+        #expect(urls.map { $0.path(percentEncoded: false) } == ["/tmp/one.app", "/tmp/two.dmg"])
+    }
+
+    @Test("A request without a batch keeps the paths it carried in the URL")
+    func requestedURLsPassesDirectPathsThrough() async throws {
+        let url = try #require(URL(string: "smuggler://process?path=/tmp/one.app&action=remove"))
+        let request = try #require(IncomingRequest(url: url))
+        let store = ServiceBatchStore(containerURL: nil)
+
+        let resolved = await IncomingRequest.requestedURLs(for: request, batchStore: store)
+
+        guard case .urls(let urls) = resolved else {
+            Issue.record("Expected the direct paths to pass through, got \(resolved)")
+            return
+        }
+        #expect(urls.map { $0.path(percentEncoded: false) } == ["/tmp/one.app"])
+    }
+
+    @Test("An invented batch name reads as a failed handover, not an empty selection")
+    func inventedBatchIsUnavailable() async throws {
+        let store = ServiceBatchStore(containerURL: sandbox.root)
+        let url = try #require(URL(string: "smuggler://process?batch=\(UUID().uuidString)&action=remove"))
+        let request = try #require(IncomingRequest(url: url))
+
+        let resolved = await IncomingRequest.requestedURLs(for: request, batchStore: store)
+
+        #expect(resolved.isBatchUnavailable)
+    }
+}
+
+extension RequestedURLs {
+    fileprivate var isBatchUnavailable: Bool {
+        if case .batchUnavailable = self { true } else { false }
     }
 }

@@ -14,13 +14,9 @@ nonisolated extension Collection {
 }
 
 // Lives next to the cap that produces the count: every list truncated this way
-// names what it hid the same way, in one place to pluralize.
+// names what it hid the same way.
 nonisolated func hiddenItemsLabel(_ hiddenCount: Int) -> String {
-    hiddenCount == 1
-        ? String(
-            localized: "and 1 more item",
-            comment: "Suffix on a truncated item list when exactly one item is hidden")
-        : String(
-            localized: "and \(hiddenCount) more items",
-            comment: "Suffix on a truncated item list when several items are hidden")
+    String(
+        localized: "and \(hiddenCount) more items",
+        comment: "Last line of a truncated list of items: the number of items not shown")
 }

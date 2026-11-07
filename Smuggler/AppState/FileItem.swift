@@ -45,17 +45,49 @@ nonisolated enum FileStatus: Equatable, Sendable {
     }
 }
 
+nonisolated extension FileStatus {
+    // A walk that ran out of time still freed what it freed: the timeout joins
+    // the errors instead of replacing a result the run actually achieved. With
+    // nothing freed the deadline is the reason, not the first file it stopped at.
+    init(outcomeOf result: QuarantineResult, for url: URL) {
+        var errors = result.errors
+        if result.timedOut {
+            errors.append(QuarantineFileError(url: url, error: .timeout(url)))
+        }
+        if errors.isEmpty {
+            self = result.cleaned > 0 ? .clean : .alreadyClean
+        } else if result.cleaned > 0 {
+            self = .partialSuccess(cleaned: result.cleaned, errors: errors)
+        } else if result.timedOut {
+            self = .error(.timeout(url))
+        } else {
+            self = .error(errors[0].error)
+        }
+    }
+}
+
 nonisolated struct FileItem: Identifiable, Equatable, Sendable {
     let id: UUID
     let url: URL
     var status: FileStatus
 
-    var name: String { url.lastPathComponent }
+    // Kept on the item, not in the row: a lazy list cancels a row's tasks when it
+    // scrolls out, and a crawl timed from the view would start over on its return.
+    var processingSince: ContinuousClock.Instant?
+
+    var name: String { url.displayName }
+
+    // Only a run that failed to find this item proves it gone: a descendant that
+    // vanished mid-walk says nothing about the folder that held it.
+    var provedMissing: Bool {
+        if case .error(let error) = status { error.refersToMissingFile && error.url == url } else { false }
+    }
 
     init(url: URL, status: FileStatus) {
         self.id = UUID()
         self.url = url
         self.status = status
+        self.processingSince = status == .processing ? .now : nil
     }
 }
 
@@ -67,6 +99,8 @@ nonisolated extension Collection<FileItem> {
     var alreadyFreeCount: Int { count { $0.status == .alreadyClean } }
 
     var failedCount: Int { count(where: \.status.hasErrors) }
+
+    var cancelledCount: Int { count { $0.status == .cancelled } }
 
     // Cancelled rows count toward nothing: a batch the user stopped themselves
     // must not read as one where the remaining items failed.

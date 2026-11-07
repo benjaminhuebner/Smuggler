@@ -15,7 +15,7 @@
 
 </div>
 
-<a href="Docs/screenshots/hero.png"><img src="Docs/screenshots/hero.png" width="100%" alt="The Smuggler window while four downloaded files are dropped in. The hazard tape around the drop zone turns yellow and snaps open at both sides, the zone reads Release to free from quarantine, each file then runs through a short progress bar, and every row ends on: Freed — ready to use."></a>
+<img src="Docs/demo.webp" width="100%" alt="Four downloaded files are dragged into the Smuggler window. The hazard tape around the drop zone turns yellow, bows in where the files press against it and snaps open at that spot, the zone reads Release to free from quarantine, each file then runs through a short progress bar, and every row ends on: Freed — ready to use. The bar at the bottom reads 4 items freed.">
 
 **Smuggler is a free, open-source macOS app that removes the `com.apple.quarantine` attribute from files and folders.** That attribute is the reason macOS refuses to open your downloads cleanly. Drag them into the window, right-click them in Finder or start Smuggler from the Services menu. It clears that one attribute and leaves everything else on disk untouched.
 
@@ -25,7 +25,7 @@ Files you download arrive with a hidden `com.apple.quarantine` attribute. That t
 
 - *"…is an app downloaded from the Internet. Are you sure you want to open it?"*
 - *"…cannot be opened because the developer cannot be verified."*
-- *"…is damaged and can't be opened. You should move it to the Trash."* — which usually means nothing is damaged at all, only that the app is not signed the way Gatekeeper expects.
+- *"…is damaged and can’t be opened. You should move it to the Trash."* — which usually means nothing is damaged at all, only that the app is not signed the way Gatekeeper expects.
 
 The usual fix is a command copied from a forum post:
 
@@ -55,21 +55,21 @@ Smuggler does the same thing by drag and drop. It removes that one attribute, wr
 </td>
 <td valign="top">
 
-**Finder.** Right-click anything and choose *Remove Quarantine* or *Remove Quarantine and Open*. The menu appears only when the selection carries the tag.
+**Finder.** Right-click a file or folder and pick *Remove Quarantine* or *Remove Quarantine and Open* from the *Smuggler* submenu. The menu appears when at least one selected item carries the tag. Finder doesn't offer it inside iCloud Drive, a synced Desktop or Documents folder included, so use the window or the Services menu there.
 
 </td>
 </tr>
 </table>
 
-**The Services menu.** *Remove Quarantine with Smuggler* sits in the Services menu of every app. That path stays out of the way: a small window shows progress, a notification tells you how it went, then Smuggler quits.
+**The Services menu.** *Remove Quarantine with Smuggler* shows up in the Services menu wherever you have files selected, Finder included, and macOS asks you to confirm it before it runs. When it has to launch Smuggler, it stays out of the way: a small window shows progress, a notification tells you how it went, then Smuggler quits. If an item needs your attention, the window stays open so you can see why. If Smuggler is already running, the files land in its window instead.
 
 ## What it touches
 
-Exactly one attribute, on the files you point it at. Nothing is moved, copied, renamed, opened or altered in content. Removing the tag is the same thing Gatekeeper does the first time you approve a file — Smuggler just lets you do it up front.
+Exactly one attribute, on the files you point it at. Nothing is moved, copied, renamed or altered in content, and nothing is opened unless you pick *Remove Quarantine and Open*, which asks first. Removing the tag gives the same approval macOS asks you for the first time you open a file — Smuggler just lets you give it up front.
 
 Two refusals are deliberate:
 
-- Smuggler refuses protected system trees (`/System`, `/usr`, the LaunchDaemon directories) at every entry point.
+- Smuggler refuses protected system folders (`/System`, `/usr`, `/bin`, `/sbin` and, inside `/Library`, the `LaunchDaemons`, `LaunchAgents` and `Extensions` folders) at every entry point, and any folder that contains one of them.
 - It never follows symlinks, so an alias cannot smuggle a blocked path past that check.
 
 > [!IMPORTANT]
@@ -79,7 +79,7 @@ Two refusals are deliberate:
 
 Smuggler needs **macOS 26** or later.
 
-Download `Smuggler.dmg` from the [releases page](https://github.com/benjaminhuebner/Smuggler/releases/latest), open it and drag Smuggler to `/Applications`. The app is signed with a Developer ID and notarized, and it updates itself through Sparkle.
+Download `Smuggler.dmg` from the [releases page](https://github.com/benjaminhuebner/Smuggler/releases/latest), open it and drag Smuggler to `/Applications`. The app is signed with a Developer ID and notarized, and it updates itself through Sparkle. In Settings (<kbd>⌘,</kbd>) you choose whether it looks for updates on its own and whether it installs them without asking.
 
 For the Finder menu, open System Settings → General → Login Items & Extensions and switch Smuggler on under Finder extensions.
 

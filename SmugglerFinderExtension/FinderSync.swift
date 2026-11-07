@@ -11,6 +11,8 @@ private let logger = Logger(
 // queues, and MainActor isolation trips the "Block was expected to execute on
 // queue main-thread" assertion in Finder — the extension then shows no menu.
 final class FinderSync: FIFinderSync {
+    private static let containingAppURL = ContainingApp.url(containing: Bundle.main.bundleURL)
+
     override init() {
         super.init()
         // FinderSync only invokes the extension for items inside its registered
@@ -22,6 +24,12 @@ final class FinderSync: FIFinderSync {
     // MARK: - Context menu
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
+        // Sidebar and background clicks point at something other than the
+        // selection the actions read, so only a click on items gets the menu.
+        guard menuKind == .contextualMenuForItems else {
+            logger.debug("menu(for:) kind=\(menuKind.rawValue) skipped")
+            return NSMenu(title: "")
+        }
         let urls = FIFinderSyncController.default().selectedItemURLs() ?? []
         // Menu construction runs synchronously inside Finder — don't getxattr
         // the whole selection just for a count.
@@ -37,7 +45,7 @@ final class FinderSync: FIFinderSync {
         submenu.addItem(
             withTitle: String(
                 localized: "Remove Quarantine and Open",
-                comment: "Finder context menu: remove quarantine and open the file"),
+                comment: "Finder context menu: remove quarantine, then open the item"),
             action: #selector(removeAndOpen(_:)),
             keyEquivalent: ""
         )
@@ -58,72 +66,57 @@ final class FinderSync: FIFinderSync {
     }
 
     @objc func removeAndOpen(_ sender: Any?) {
-        sendToApp(action: "open")
+        sendToApp(action: .open)
     }
 
     @objc func removeOnly(_ sender: Any?) {
-        sendToApp(action: "remove")
+        sendToApp(action: .remove)
     }
 
     // MARK: - Private
 
-    private func sendToApp(action: String) {
+    private func sendToApp(action: ServiceAction) {
         let urls = FIFinderSyncController.default().selectedItemURLs() ?? []
         guard !urls.isEmpty else { return }
 
-        var fixedItems = [
-            URLQueryItem(name: "action", value: action),
-            URLQueryItem(name: "quitAfter", value: "true"),
-        ]
-        if let token = ServiceTokenStore().issueToken() {
-            fixedItems.append(URLQueryItem(name: "token", value: token))
-        } else {
+        let token = ServiceTokenStore().issueToken()
+        if token == nil {
             logger.warning("Could not issue service token — app will show a confirmation dialog")
         }
 
-        let paths = urls.map { $0.path(percentEncoded: false) }
-
-        var components = URLComponents()
-        components.scheme = "smuggler"
-        components.host = "process"
-        // One query item per path — avoids breakage from filenames containing newlines.
-        components.queryItems = paths.map { URLQueryItem(name: "path", value: $0) } + fixedItems
-
-        // Past this length Launch Services can refuse the whole request, and a
-        // refusal here is invisible to the person who clicked. The paths go
-        // through the shared container instead, leaving a constant-length URL.
-        if (components.url?.absoluteString.utf8.count ?? .max) > Self.maxDirectURLLength {
-            if let batch = ServiceBatchStore().write(paths: paths) {
-                components.queryItems = [URLQueryItem(name: "batch", value: batch)] + fixedItems
-                logger.info("Selection too large for a direct URL — handing \(paths.count) path(s) over as a batch")
-            } else {
-                logger.error("Could not write the path batch — falling back to a URL that may be refused")
-            }
-        }
-
-        guard let url = components.url else {
+        guard
+            let url = ServiceRequestURL.make(
+                paths: urls.map { $0.path(percentEncoded: false) },
+                action: action,
+                quitAfter: true,
+                token: token,
+                batchStore: ServiceBatchStore()
+            )
+        else {
             logger.error("Failed to construct smuggler:// URL")
             return
         }
 
-        logger.info("Opening smuggler URL for \(urls.count) item(s), action: \(action)")
+        let count = urls.count
+        logger.info("Opening smuggler URL for \(count) item(s), action: \(action.rawValue)")
 
-        Task { @MainActor in
-            if !NSWorkspace.shared.open(url) {
-                logger.error("NSWorkspace declined to open the smuggler:// URL (\(urls.count) items)")
+        // No fallback to the default handler on failure: that is the route the
+        // token must never take.
+        NSWorkspace.shared.open(
+            [url], withApplicationAt: Self.containingAppURL, configuration: ContainingApp.openConfiguration()
+        ) { _, error in
+            if let error {
+                logger.error(
+                    "Could not hand \(count) item(s) to Smuggler: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
 
-    private static let maxDirectURLLength = 6000
-
-    // Duplicates `QuarantineService.hasQuarantine` deliberately: sharing the file
-    // via target membership would drag unused recursion code and localized error
-    // strings into the extension for a single 4-line function.
+    // A link would report its target's attribute, and the app never follows one.
     private static func hasQuarantine(_ url: URL) -> Bool {
         url.withUnsafeFileSystemRepresentation { path in
             guard let path else { return false }
-            return getxattr(path, "com.apple.quarantine", nil, 0, 0, 0) >= 0
+            return getxattr(path, "com.apple.quarantine", nil, 0, 0, XATTR_NOFOLLOW) >= 0
         }
     }
 }

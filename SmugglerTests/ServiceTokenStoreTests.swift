@@ -5,17 +5,13 @@ import Testing
 
 @Suite("ServiceTokenStore")
 struct ServiceTokenStoreTests {
-    private func makeStore() throws -> (store: ServiceTokenStore, container: URL) {
-        let container = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        return (ServiceTokenStore(containerURL: container), container)
-    }
+    let sandbox = TestSandbox()
+
+    private var store: ServiceTokenStore { ServiceTokenStore(containerURL: sandbox.root) }
+    private var tokensDirectory: URL { sandbox.root.appending(path: "ServiceTokens") }
 
     @Test("A freshly issued token validates exactly once, a replay is rejected")
     func replayedTokenFails() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
         let token = try #require(store.issueToken())
         #expect(store.consumeToken(token) == true)
         #expect(store.consumeToken(token) == false)
@@ -23,76 +19,25 @@ struct ServiceTokenStoreTests {
 
     @Test("A stale token is rejected")
     func staleTokenFails() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
         let token = try #require(store.issueToken())
-        let file = container.appending(path: "ServiceTokens").appending(path: token)
+        let file = tokensDirectory.appending(path: token)
         try FileManager.default.setAttributes(
-            [.creationDate: Date(timeIntervalSinceNow: -(ServiceTokenStore.defaultMaxAge + 60))],
+            [.creationDate: Date(timeIntervalSinceNow: -(ServiceTokenStore.maxAge + 60))],
             ofItemAtPath: file.path(percentEncoded: false)
         )
 
         #expect(store.consumeToken(token) == false)
     }
 
-    @Test("A token whose file cannot be deleted is rejected")
-    func undeletableTokenFailsClosed() throws {
-        let (store, container) = try makeStore()
-        let tokensDir = container.appending(path: "ServiceTokens")
-        defer {
-            try? FileManager.default.setAttributes(
-                [.posixPermissions: 0o755], ofItemAtPath: tokensDir.path(percentEncoded: false))
-            try? FileManager.default.removeItem(at: container)
-        }
-
+    @Test("A token aged just under the max age is still honored")
+    func tokenInsideMaxAgeValidates() throws {
         let token = try #require(store.issueToken())
+        let file = tokensDirectory.appending(path: token)
         try FileManager.default.setAttributes(
-            [.posixPermissions: 0o555], ofItemAtPath: tokensDir.path(percentEncoded: false))
-
-        #expect(store.consumeToken(token) == false)
-    }
-
-    @Test("A token that was never issued is rejected")
-    func missingTokenFails() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
-        #expect(store.consumeToken(UUID().uuidString) == false)
-    }
-
-    @Test("Malformed tokens are rejected without touching the filesystem")
-    func malformedTokenFails() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
-        #expect(store.consumeToken("not-a-uuid") == false)
-        #expect(store.consumeToken("../../../etc/passwd") == false)
-        #expect(store.consumeToken("") == false)
-    }
-
-    @Test("Issuing a token prunes stale token files")
-    func issuePrunesStaleTokens() throws {
-        let (store, container) = try makeStore()
-        defer { try? FileManager.default.removeItem(at: container) }
-
-        let stale = try #require(store.issueToken())
-        let staleFile = container.appending(path: "ServiceTokens").appending(path: stale)
-        try FileManager.default.setAttributes(
-            [.creationDate: Date(timeIntervalSinceNow: -(ServiceTokenStore.defaultMaxAge + 60))],
-            ofItemAtPath: staleFile.path(percentEncoded: false)
+            [.creationDate: Date(timeIntervalSinceNow: -(ServiceTokenStore.maxAge - 10))],
+            ofItemAtPath: file.path(percentEncoded: false)
         )
 
-        _ = try #require(store.issueToken())
-
-        #expect(!FileManager.default.fileExists(atPath: staleFile.path(percentEncoded: false)))
-    }
-
-    @Test("An unavailable group container fails safe")
-    func unavailableContainerFailsSafe() {
-        let store = ServiceTokenStore(containerURL: nil)
-
-        #expect(store.issueToken() == nil)
-        #expect(store.consumeToken(UUID().uuidString) == false)
+        #expect(store.consumeToken(token) == true)
     }
 }

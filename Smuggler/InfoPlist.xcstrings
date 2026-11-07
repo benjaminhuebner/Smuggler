@@ -15,32 +15,7 @@
     },
     "NSHumanReadableCopyright" : {
       "comment" : "Copyright (human-readable)",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "© 2026 Benjamin Hübner"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "© 2026 Benjamin Hübner"
-          }
-        }
-      }
-    },
-    "Remove Quarantine with Smuggler" : {
-      "comment" : "macOS Services menu item title (NSServices > NSMenuItem > default in Info.plist)",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quarantäne aufheben mit Smuggler"
-          }
-        }
-      }
+      "shouldTranslate" : false
     }
   },
   "version" : "1.0"

@@ -2,17 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Extensions must be sandboxed. The temporary exception grants read-write
-	     access to all paths, which is needed for removexattr() on arbitrary files.
-	     This is only valid for Developer ID distribution (not App Store). -->
+	<!-- Extensions must be sandboxed. The menu only reads com.apple.quarantine on
+	     whatever Finder shows, so read access to every path is all it gets; removal
+	     belongs to the unsandboxed app, and the only writes go to the app group. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
-	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
 	<array>
 		<string>/</string>
 	</array>
-	<!-- Shared with the main app for one-time service tokens that authenticate
-	     smuggler:// requests as coming from this extension. -->
+	<!-- Shared with the main app for the one-time service tokens and path batches
+	     that accompany smuggler:// requests from this extension. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(TeamIdentifierPrefix)group.com.benjaminhuebner.Smuggler</string>

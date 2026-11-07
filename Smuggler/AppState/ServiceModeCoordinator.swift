@@ -6,16 +6,14 @@ import Foundation
 final class ServiceModeCoordinator {
     let entryIDs: Set<UUID>
     let action: ServiceAction
-    let quitAfter: Bool
 
     var processingTask: Task<Void, Never>?
     var terminationTask: Task<Void, Never>?
     var authorizationTask: Task<Void, Never>?
 
-    init(entryIDs: Set<UUID>, action: ServiceAction, quitAfter: Bool) {
+    init(entryIDs: Set<UUID>, action: ServiceAction) {
         self.entryIDs = entryIDs
         self.action = action
-        self.quitAfter = quitAfter
     }
 
     func cancel() {

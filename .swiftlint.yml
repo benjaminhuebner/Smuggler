@@ -94,20 +94,16 @@ custom_rules:
 
   prefer_final_class:
     name: "Prefer final class"
-    regex: '^\s*(public\s+|internal\s+|private\s+|fileprivate\s+)?class\s+(?!final\s)\w+'
+    regex: '^[ \t]*((@\w+(\([^)]*\))?|public|internal|package|private|fileprivate|nonisolated)\s+)*class\s+(?!(final|func|var|subscript|override)\b)\w+'
     message: "Mark classes `final` unless inheritance is required. Use struct when possible."
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
     severity: warning
 
-  private_observed_object:
-    name: "@ObservedObject must be private"
-    regex: '^\s*@ObservedObject\s+(?!private\s)'
-    message: "`@ObservedObject` properties must be `private` — pass the model in via init, don't expose it as API."
-    severity: error
-
-  private_environment_object:
-    name: "@EnvironmentObject must be private"
-    regex: '^\s*@EnvironmentObject\s+(?!private\s)'
-    message: "`@EnvironmentObject` properties must be `private`."
+  no_observable_object:
+    name: "No ObservableObject stack"
+    regex: '\bObservableObject\b|@(StateObject|ObservedObject|EnvironmentObject|Published)\b'
+    message: "Use @Observable with @State / @Environment / @Bindable instead of the ObservableObject stack."
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
     severity: error
 
   no_navigation_view:

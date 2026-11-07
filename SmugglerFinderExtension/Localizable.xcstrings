@@ -2,12 +2,12 @@
   "sourceLanguage" : "en",
   "strings" : {
     "Remove Quarantine and Open" : {
-      "comment" : "Finder context menu: remove quarantine and open the file",
+      "comment" : "Finder context menu: remove quarantine, then open the item",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quarantäne aufheben & Öffnen"
+            "value" : "Quarantäne aufheben und öffnen"
           }
         }
       }

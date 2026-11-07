@@ -8,8 +8,8 @@ struct FileMenuAction {
 }
 
 extension FocusedValues {
-    @Entry var openFiles: FileMenuAction?
-    @Entry var openFolder: FileMenuAction?
+    @Entry var chooseFiles: FileMenuAction?
+    @Entry var clearAll: FileMenuAction?
 }
 
 // MARK: - App
@@ -17,23 +17,15 @@ extension FocusedValues {
 @main
 struct SmugglerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @FocusedValue(\.openFiles) private var openFiles
-    @FocusedValue(\.openFolder) private var openFolder
+    @Environment(\.openWindow) private var openWindow
+    @FocusedValue(\.chooseFiles) private var chooseFiles
+    @FocusedValue(\.clearAll) private var clearAll
 
     var body: some Scene {
-        Window("Smuggler", id: "main") {
+        Window(String(localized: "Smuggler", comment: "Window title: the brand name, never translated"), id: "main") {
             ContentView(appModel: appDelegate.appModel)
-                .onOpenURL { url in
-                    let isColdLaunch = appDelegate.consumeColdLaunch()
-                    guard let request = IncomingRequest(url: url) else {
-                        appDelegate.appModel.rejectIncomingRequest(url, isColdLaunch: isColdLaunch)
-                        return
-                    }
-                    if !isColdLaunch {
-                        NSApp.activate(ignoringOtherApps: true)
-                    }
-                    appDelegate.appModel.handleIncomingRequest(request, isColdLaunch: isColdLaunch)
-                }
+                .onOpenURL(perform: appDelegate.handleIncomingURL)
+                .onAppear { appDelegate.openMainWindow = { openWindow(id: "main") } }
         }
         .defaultSize(width: 520, height: 380)
         .windowResizability(.contentSize)
@@ -43,15 +35,11 @@ struct SmugglerApp: App {
             }
 
             CommandGroup(replacing: .newItem) {
-                Button("Open File…") {
-                    openFiles?()
+                Button(DropAffordance.chooseFiles) {
+                    chooseFiles?()
                 }
                 .keyboardShortcut("o")
-
-                Button("Open Folder…") {
-                    openFolder?()
-                }
-                .keyboardShortcut("o", modifiers: [.shift, .command])
+                .disabled(chooseFiles == nil)
 
                 Divider()
 
@@ -59,9 +47,25 @@ struct SmugglerApp: App {
                 // body, and a command reading the model directly keeps whatever
                 // enablement it was built with.
                 CancelAllButton(appModel: appDelegate.appModel)
-                ClearAllButton(appModel: appDelegate.appModel)
+                ClearAllButton(appModel: appDelegate.appModel, clearAll: clearAll)
+            }
+
+            // Without a help book, the system's own item ends in "Help isn't available".
+            CommandGroup(replacing: .help) {
+                if let readme = URL(string: "https://github.com/benjaminhuebner/Smuggler#readme") {
+                    Link(
+                        String(localized: "Smuggler Help", comment: "Help menu item: opens the app's guide on the web"),
+                        destination: readme)
+                }
             }
         }
+
+        Settings {
+            SettingsView(updater: appDelegate.updater)
+        }
+        // A restored Settings window would open beside the compact window of a
+        // session launched only to serve one Finder or Services request.
+        .restorationBehavior(.disabled)
     }
 }
 
@@ -71,7 +75,7 @@ private struct CancelAllButton: View {
     let appModel: AppModel
 
     var body: some View {
-        Button("Cancel All") {
+        Button(String(localized: "Cancel All", comment: "File menu item: cancel every item still being processed")) {
             appModel.cancelAll()
         }
         .keyboardShortcut(".", modifiers: .command)
@@ -79,17 +83,20 @@ private struct CancelAllButton: View {
     }
 }
 
+// Through the window, not `appModel.clear()`: from here the list would empty a
+// frame before the window's switch to the drop zone begins.
 private struct ClearAllButton: View {
     let appModel: AppModel
+    let clearAll: FileMenuAction?
 
     var body: some View {
-        Button("Clear All") {
-            appModel.clear()
+        Button(String(localized: "Clear All", comment: "File menu item: remove all items from the list")) {
+            clearAll?()
         }
         .keyboardShortcut(.delete, modifiers: .command)
         // Withheld in service mode: clearing cancels the coordinator, and the
         // session Finder launched would then never reach its quit.
-        .disabled(appModel.items.isEmpty || appModel.isProcessing || appModel.serviceMode != nil)
+        .disabled(clearAll == nil || appModel.items.isEmpty || appModel.isProcessing || appModel.isServiceMode)
     }
 }
 
@@ -99,7 +106,9 @@ private struct CheckForUpdatesButton: View {
     let updater: UpdaterController
 
     var body: some View {
-        Button("Check for Updates…") {
+        Button(
+            String(localized: "Check for Updates…", comment: "App menu item: look for a newer version of Smuggler")
+        ) {
             updater.checkForUpdates()
         }
         .disabled(!updater.canCheckForUpdates)

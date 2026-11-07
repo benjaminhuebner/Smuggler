@@ -4,12 +4,12 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>LSMinimumSystemVersion</key>
-	<string>26.0</string>
 	<key>SUFeedURL</key>
 	<string>https://benjaminhuebner.com/apps/smuggler/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>ANcEZL5WMisg7M7wy6Wj6nejyankA9iYVPbzSMl5fzU=</string>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -33,6 +33,8 @@
 			<string>removeQuarantine</string>
 			<key>NSPortName</key>
 			<string>Smuggler</string>
+			<key>NSRestricted</key>
+			<true/>
 			<key>NSSendFileTypes</key>
 			<array>
 				<string>public.item</string>

@@ -10,11 +10,6 @@ import os
 
 nonisolated private let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler", category: "IncomingRequest")
 
-nonisolated enum ServiceAction: String, Sendable {
-    case open
-    case remove
-}
-
 // A handover that could not be read is its own outcome: served as an empty
 // selection it would be indistinguishable from a request with nothing to do,
 // and a headless session would quit without telling anyone.
@@ -37,7 +32,8 @@ nonisolated extension IncomingRequest {
     init?(url: URL) {
         // Launch Services routes schemes and hosts case-insensitively; the
         // parser must accept the same spellings or a valid click does nothing.
-        guard url.scheme?.lowercased() == "smuggler", url.host?.lowercased() == "process" else {
+        guard url.scheme?.lowercased() == ServiceRequestURL.scheme, url.host?.lowercased() == ServiceRequestURL.host
+        else {
             logger.warning("Received unknown URL: \(url, privacy: .private)")
             return nil
         }
@@ -48,15 +44,17 @@ nonisolated extension IncomingRequest {
         // Parsing stays free of filesystem calls: it runs on the main actor as
         // the request arrives, and the directory form is resolved off-main by
         // the caller instead.
-        let urls = Self.fileURLs(fromPaths: queryItems.filter { $0.name == "path" }.compactMap(\.value))
+        let urls = Self.fileURLs(
+            fromPaths: queryItems.filter { $0.name == ServiceRequestURL.pathKey }.compactMap(\.value))
         // A batch stands in for the paths when the selection outgrew the URL.
-        let batchName = queryItems.first(where: { $0.name == "batch" })?.value
+        let batchName = queryItems.first(where: { $0.name == ServiceRequestURL.batchKey })?.value
         guard !urls.isEmpty || batchName != nil else {
             logger.warning("URL missing usable path parameter(s): \(url, privacy: .private)")
             return nil
         }
 
-        let rawAction = queryItems.first(where: { $0.name == "action" })?.value ?? ServiceAction.open.rawValue
+        let rawAction =
+            queryItems.first(where: { $0.name == ServiceRequestURL.actionKey })?.value ?? ServiceAction.open.rawValue
         guard let action = ServiceAction(rawValue: rawAction) else {
             logger.warning("Invalid action in URL: \(rawAction)")
             return nil
@@ -66,7 +64,7 @@ nonisolated extension IncomingRequest {
             urls: urls,
             action: action,
             quitAfter: Self.requestsQuit(queryItems),
-            token: queryItems.first(where: { $0.name == "token" })?.value,
+            token: queryItems.first(where: { $0.name == ServiceRequestURL.tokenKey })?.value,
             batchName: batchName
         )
     }
@@ -74,16 +72,9 @@ nonisolated extension IncomingRequest {
     // Reading the batch is a file read, so it stays off the main actor alongside
     // the existence filter rather than happening in the parser.
     @concurrent
-    static func requestedURLs(
-        for request: IncomingRequest,
-        batchStore: ServiceBatchStore? = nil
-    ) async -> RequestedURLs {
+    static func requestedURLs(for request: IncomingRequest, batchStore: ServiceBatchStore) async -> RequestedURLs {
         guard let batchName = request.batchName else { return .urls(request.urls) }
-        // Built here rather than as a default argument, which Swift would evaluate
-        // in the caller's main-actor context — the group-container lookup is a
-        // synchronous round trip that can materialize the directory.
-        let store = batchStore ?? ServiceBatchStore()
-        let urls = Self.fileURLs(fromPaths: store.consume(batchName))
+        let urls = Self.fileURLs(fromPaths: batchStore.consume(batchName))
         // A batch always carries at least one path, so nothing here means the
         // handover failed — that is a different outcome from "the user picked
         // nothing" and must not be served as an empty selection.
@@ -109,7 +100,7 @@ nonisolated extension IncomingRequest {
     }
 
     static func requestsQuit(_ queryItems: [URLQueryItem]) -> Bool {
-        let raw = queryItems.first(where: { $0.name == "quitAfter" })?.value?.lowercased()
+        let raw = queryItems.first(where: { $0.name == ServiceRequestURL.quitAfterKey })?.value?.lowercased()
         return raw == "true" || raw == "1"
     }
 
@@ -121,6 +112,7 @@ nonisolated extension IncomingRequest {
         var kept: [URL] = []
         var removable: [URL] = []
         for url in urls {
+            guard !Task.isCancelled else { return ([], []) }
             // Resolved here, not at parse time: it costs a stat per path and the
             // parser runs on the main actor. One stat answers both questions —
             // dedup needs the same URL form a drop or an open panel would produce.
@@ -133,11 +125,21 @@ nonisolated extension IncomingRequest {
             ).standardizedFileURL
             if QuarantineService.isBlockedPath(resolved) {
                 kept.append(resolved)
-            } else if exists {
+            } else if exists || !isAbsent(path) {
                 kept.append(resolved)
                 removable.append(resolved)
             }
         }
         return (kept, removable)
+    }
+
+    // Only "nothing there" drops a path. fileExists also says no to a dangling link
+    // or a stat that failed (no access, a dropped volume): those are the walk's to
+    // report as a row, and an untrusted sender's still go through the dialog.
+    private static func isAbsent(_ path: String) -> Bool {
+        var info = stat()
+        guard lstat(path, &info) != 0 else { return false }
+        let code = errno
+        return code == ENOENT || code == ENOTDIR
     }
 }

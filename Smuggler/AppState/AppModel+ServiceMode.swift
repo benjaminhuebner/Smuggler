@@ -5,11 +5,10 @@
 //  Created by Benjamin Hübner on 09.08.26.
 //
 
-import AppKit
 import Foundation
 
 extension AppModel {
-    // MARK: - URL Scheme Handling
+    // MARK: - Incoming Requests
 
     @discardableResult
     func handleIncomingRequest(_ request: IncomingRequest, isColdLaunch: Bool) -> Task<Void, Never> {
@@ -17,6 +16,21 @@ extension AppModel {
         // dialog, a valid 60s Finder-extension token would otherwise expire
         // and demote the user's own action to an untrusted request.
         let trusted = request.token.map { tokenStore.consumeToken($0) } ?? false
+        return chainRequest(request, trusted: trusted, isColdLaunch: isColdLaunch)
+    }
+
+    // Trusted without a token: macOS itself asks the user before the restricted service
+    // runs (NSRestricted), even when Finder is the caller.
+    @discardableResult
+    func handleServicesRequest(_ urls: [URL], isColdLaunch: Bool) -> Task<Void, Never> {
+        chainRequest(
+            IncomingRequest(urls: urls, action: .remove, quitAfter: true, token: nil),
+            trusted: true,
+            isColdLaunch: isColdLaunch
+        )
+    }
+
+    private func chainRequest(_ request: IncomingRequest, trusted: Bool, isColdLaunch: Bool) -> Task<Void, Never> {
         let quitAfter = request.quitAfter && isColdLaunch
         lastRequestID += 1
         let requestID = lastRequestID
@@ -27,70 +41,65 @@ extension AppModel {
             // Read before waiting on the queue ahead, for the same reason the
             // token is consumed on arrival: the batch expires 60s after the
             // extension wrote it, and a dialog ahead of us outlives that.
-            let requested = await IncomingRequest.requestedURLs(for: request)
+            let requested = await IncomingRequest.requestedURLs(for: request, batchStore: batchStore)
             await previous?.value
             guard !Task.isCancelled else { return }
             guard case .urls(let requestedURLs) = requested else {
-                await reportUnreadableBatch(quitAfter: quitAfter, requestID: requestID)
+                // The paths never arrived: no row can fail and the window has
+                // nothing to show, so the notification is the only trace.
+                await handlers.notifyFailure()
+                quitIfStillCurrent(quitAfter: quitAfter, requestID: requestID)
                 return
             }
             let (urls, removableURLs) = await IncomingRequest.resolvedURLs(from: requestedURLs)
             guard !Task.isCancelled else { return }
             guard !urls.isEmpty else {
-                // A headless launch must honor its quit contract even when every
-                // path was dropped.
+                // Every path named was gone: no row can say so, and a headless
+                // launch still honors its quit contract.
+                if !requestedURLs.isEmpty { await handlers.notifyFailure() }
                 quitIfStillCurrent(quitAfter: quitAfter, requestID: requestID)
                 return
             }
-            handleURLRequest(
-                urls: urls,
-                removableURLs: removableURLs,
-                action: request.action,
-                quitAfter: quitAfter,
-                trusted: trusted
-            )
+            // A smuggler:// URL can come from any process and both actions strip
+            // quarantine, so an untrusted request needs human approval. Blocked paths
+            // stay out of the dialog: the pipeline refuses them anyway.
+            guard trusted || removableURLs.isEmpty || handlers.confirm(removableURLs, .remove) else {
+                await quitAfterDecline(quitAfter: quitAfter, requestID: requestID)
+                return
+            }
+            handleServiceURLs(urls, action: request.action, quitAfter: quitAfter)
         }
         liveRequestTasks[requestID] = task
         incomingRequestTask = task
         return task
     }
 
-    // The paths never arrived, so there is no row to fail and nothing to show in
-    // the window; the notification is the only place this can surface.
-    private func reportUnreadableBatch(quitAfter: Bool, requestID: Int) async {
-        await notifyFailure()
+    // A request sent while the dialog was up may only be delivered once it closes;
+    // it gets the same chance to take the session over as a finished batch does.
+    private func quitAfterDecline(quitAfter: Bool, requestID: Int) async {
+        guard quitAfter, requestID == lastRequestID else { return }
+        try? await Task.sleep(for: terminationGrace)
+        guard !Task.isCancelled else { return }
         quitIfStillCurrent(quitAfter: quitAfter, requestID: requestID)
     }
 
-    // Only the newest request may end the session. Every exit here sits after a
-    // suspension, and a request that arrived meanwhile would die with the app
-    // before it ran.
+    // Only the newest request may end the session, and work dropped into the window
+    // meanwhile keeps it: every exit here sits after a suspension, and whatever
+    // arrived during it would die with the app.
     private func quitIfStillCurrent(quitAfter: Bool, requestID: Int) {
-        if quitAfter, requestID == lastRequestID { terminate() }
+        guard quitAfter, requestID == lastRequestID else { return }
+        if isProcessing {
+            handlers.sessionStays()
+        } else {
+            handlers.terminate()
+        }
     }
 
     // A URL the parser rejected still carries its sender's quit contract: a cold
     // launch that exists only to serve it must not leave an orphan window behind.
     func rejectIncomingRequest(_ url: URL, isColdLaunch: Bool) {
         guard isColdLaunch, IncomingRequest.requestsQuit(url) else { return }
-        terminate()
-    }
-
-    // A smuggler:// URL can come from any process and both actions strip quarantine,
-    // so untrusted requests need human approval; a valid Finder-extension token skips
-    // it. `removableURLs` excludes blocked paths — the pipeline refuses those anyway.
-    func handleURLRequest(
-        urls: [URL],
-        removableURLs: [URL],
-        action: ServiceAction,
-        quitAfter: Bool,
-        trusted: Bool
-    ) {
-        if !trusted, !removableURLs.isEmpty, !confirm(removableURLs, .remove) {
-            if quitAfter { terminate() }
-            return
-        }
-        handleServiceURLs(urls, action: action, quitAfter: quitAfter)
+        handlers.terminate()
     }
 
     // MARK: - Service Mode
@@ -103,12 +112,8 @@ extension AppModel {
         if quitAfter {
             // A superseded batch must not fire its termination or notification.
             serviceMode?.cancel()
-            let coordinator = ServiceModeCoordinator(
-                entryIDs: entryIDs,
-                action: action,
-                quitAfter: true
-            )
-            coordinator.authorizationTask = Task { [authorize] in await authorize() }
+            let coordinator = ServiceModeCoordinator(entryIDs: entryIDs, action: action)
+            coordinator.authorizationTask = Task { [authorize = handlers.authorize] in await authorize() }
             serviceMode = coordinator
 
             coordinator.processingTask = Task { [weak self] in
@@ -124,6 +129,9 @@ extension AppModel {
                 pending.terminationTask?.cancel()
                 serviceMode = nil
             }
+            // Unconditional: a cold request that never asked to quit keeps its window
+            // too, and no later step would hand that session back.
+            handlers.sessionStays()
             serviceHandlerTask = Task { [weak self] in
                 guard let self else { return }
                 await process(urls: urls)
@@ -133,39 +141,47 @@ extension AppModel {
         }
     }
 
-    // The notify suspension and the confirmation's nested modal run loop are
+    // The confirmation's nested modal run loop and the notify suspension are
     // supersession points: a second batch can replace `serviceMode` meanwhile,
     // so every later step must re-check identity before clearing or terminating.
     private func finishServiceMode(_ coordinator: ServiceModeCoordinator) async {
         let batchItems = items.filter { coordinator.entryIDs.contains($0.id) }
+        // Offered whatever else failed, as a warm batch is: the failures stay in the
+        // window and the notification, and the dialog still gates every launch.
+        if coordinator.action == .open {
+            confirmAndOpenSuccessful(in: batchItems)
+        }
+
         // A subtree the walk could not descend into is reported in the notification
         // but leaves nothing to inspect here, so it must not hold the window open.
         if batchItems.contains(where: \.status.hasActionableErrors) {
             // Tell the user why the window lingers instead of failing silently.
-            await notify(batchItems)
+            await handlers.notify(batchItems)
             if serviceMode === coordinator {
                 serviceMode = nil
+                handlers.sessionStays()
             }
             return
         }
 
-        if coordinator.action == .open {
-            confirmAndOpenSuccessful(in: batchItems)
-        } else {
+        if coordinator.action != .open {
             // Posted before the termination grace: a warm takeover cancelling
             // the pending quit must not drop the batch's result notification.
-            await notify(batchItems)
+            await handlers.notify(batchItems)
         }
 
         guard serviceMode === coordinator else { return }
-        coordinator.terminationTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(800))
-            guard !Task.isCancelled else { return }
-            if coordinator.quitAfter {
-                self?.terminate()
-            } else if self?.serviceMode === coordinator {
-                self?.serviceMode = nil
+        coordinator.terminationTask = Task { [weak self, grace = terminationGrace] in
+            try? await Task.sleep(for: grace)
+            guard !Task.isCancelled, let self, serviceMode === coordinator else { return }
+            // Whatever arrived meanwhile owns the session: a request still resolving
+            // or asking, or work started outside the request chain.
+            guard !hasRequestsInFlight, !isProcessing else {
+                serviceMode = nil
+                handlers.sessionStays()
+                return
             }
+            handlers.terminate()
         }
     }
 
@@ -176,74 +192,7 @@ extension AppModel {
     private func confirmAndOpenSuccessful(in batchItems: [FileItem]) {
         let urls = batchItems.filter(\.status.isSuccessful).map(\.url)
         guard !urls.isEmpty else { return }
-        guard confirm(urls, .open) else { return }
-        open(urls)
-    }
-
-    static func confirmViaAlert(_ urls: [URL], kind: ConfirmKind) -> Bool {
-        // The dialog may be triggered while another app is frontmost (URL scheme,
-        // headless service launch) — without activation it would appear behind.
-        NSApp.activate(ignoringOtherApps: true)
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        switch kind {
-        case .open:
-            alert.messageText =
-                urls.count == 1
-                ? String(
-                    localized: "Open \(urls[0].lastPathComponent)?",
-                    comment: "Confirm dialog title: open a single file after removing quarantine")
-                : String(
-                    localized: "Open \(urls.count) items?",
-                    comment: "Confirm dialog title: open multiple files after removing quarantine")
-            alert.informativeText = String(
-                localized: "Quarantine was removed. Only open items you trust.",
-                comment: "Confirm dialog body: warn before opening files after quarantine removal")
-            alert.addButton(withTitle: String(localized: "Open", comment: "Confirm dialog: open button"))
-        case .remove:
-            alert.messageText =
-                urls.count == 1
-                ? String(
-                    localized: "Remove quarantine from \(urls[0].lastPathComponent)?",
-                    comment: "Confirm dialog title: external request to remove quarantine from one file")
-                : String(
-                    localized: "Remove quarantine from \(urls.count) items?",
-                    comment: "Confirm dialog title: external request to remove quarantine from multiple files")
-            let (shownURLs, hiddenCount) = urls.cappedPrefix(10)
-            var pathList = shownURLs.map { $0.path(percentEncoded: false) }.joined(separator: "\n")
-            if hiddenCount > 0 {
-                pathList +=
-                    "\n"
-                    + String(
-                        localized: "and \(hiddenCount) more",
-                        comment: "Confirm dialog: suffix when the path list is truncated")
-            }
-            alert.informativeText = String(
-                localized: """
-                    Only continue if you started this yourself.
-
-                    \(pathList)
-                    """,
-                comment: "Confirm dialog body: warn about an external quarantine-removal request")
-            alert.addButton(
-                withTitle: String(
-                    localized: "Remove Quarantine",
-                    comment: "Confirm dialog: remove quarantine button"))
-        }
-        let cancelButton = alert.addButton(
-            withTitle: String(localized: "Cancel", comment: "Confirm dialog: cancel button"))
-        // AppKit assigns Escape by matching the literal title "Cancel", which no
-        // localized build carries — without this the dialog answers no key at all.
-        cancelButton.keyEquivalent = "\u{1b}"
-
-        if kind == .remove {
-            // An external request can land mid-keystroke — a stray Return must not
-            // approve stripping Gatekeeper's check. The confirmed open keeps its
-            // default button; the user asked for that one.
-            alert.buttons[0].keyEquivalent = ""
-        }
-
-        return alert.runModal() == .alertFirstButtonReturn
+        guard handlers.confirm(urls, .open) else { return }
+        handlers.open(urls)
     }
 }

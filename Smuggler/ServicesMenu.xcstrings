@@ -1,0 +1,24 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Remove Quarantine with Smuggler" : {
+      "comment" : "macOS Services menu item title. The key must equal NSServices > NSMenuItem > default in Info.plist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quarantäne mit Smuggler aufheben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Quarantine with Smuggler"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -5,10 +5,10 @@ nonisolated private let logger = Logger(subsystem: "com.benjaminhuebner.Smuggler
 
 // Headless mode (Services / Finder Extension) only — in-app flows show
 // results in the window instead of notifying.
-enum NotificationService {
+nonisolated enum NotificationService {
     // MARK: - Authorization
 
-    nonisolated static func requestAuthorization() async {
+    static func requestAuthorization() async {
         do {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound])
@@ -24,23 +24,23 @@ enum NotificationService {
 
     // MARK: - Posting
 
-    nonisolated static func postResult(items: [FileItem]) async {
+    static func postResult(items: [FileItem]) async {
         let (title, body) = buildContent(for: items)
         await post(title: title, body: body)
     }
 
-    // The paths never reached the app, so there is no batch to summarize — without
-    // this a failed handover would end a headless session in silence.
-    nonisolated static func postRequestFailure() async {
+    // No row can carry this outcome: the paths never reached the app, or none of them
+    // was still there. Without it the request would end in silence.
+    static func postRequestFailure() async {
         await post(
             title: String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"),
             body: String(
-                localized: "The selected items could not be read. Try again from Finder.",
-                comment: "Notification body: the sender's item list never arrived")
+                localized: "The selected items could not be found or read. Try again from Finder.",
+                comment: "Notification body: the sender's item list never arrived, or none of its items exists anymore")
         )
     }
 
-    nonisolated private static func post(title: String, body: String) async {
+    private static func post(title: String, body: String) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
 
@@ -72,7 +72,7 @@ enum NotificationService {
 
     // MARK: - Content Building (pure, testable)
 
-    nonisolated static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
+    static func buildContent(for items: [FileItem]) -> (title: String, body: String) {
         guard !items.isEmpty else {
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), "")
         }
@@ -83,7 +83,9 @@ enum NotificationService {
         let errorCount = items.failedCount
         let attemptedCount = items.attemptedCount
 
-        if freedCount == 0, errorCount == 0, alreadyFreeCount > 0 {
+        // A canceled row never finished, so "nothing needed removing" cannot speak
+        // for it: that mix falls through to the stop, which claims nothing either way.
+        if freedCount == 0, errorCount == 0, alreadyFreeCount > 0, items.cancelledCount == 0 {
             let body =
                 alreadyFreeCount == 1
                 ? String(
@@ -100,21 +102,26 @@ enum NotificationService {
 
         if freedCount == 0 {
             guard let firstFailed = items.first(where: \.status.hasErrors) else {
+                // No claim about the disk: a folder stopped mid-walk may already be
+                // partly freed, its own quarantine first.
                 return (
-                    String(localized: "Cancelled", comment: "Notification title: nothing processed"),
                     String(
-                        localized: "No quarantine was removed.",
-                        comment: "Notification body: cancelled, nothing removed")
+                        localized: "Canceled",
+                        comment: "Notification title: processing was stopped before every item finished"),
+                    String(
+                        localized: "Processing was stopped before it finished.",
+                        comment:
+                            "Notification body: nothing freed or failed, some canceled; must not claim nothing changed")
                 )
             }
             let body =
                 errorCount == 1
                 ? String(
                     localized: "Could not remove quarantine from \(firstFailed.name).",
-                    comment: "Notification body: single file failure")
+                    comment: "Notification body: the one named item that failed")
                 : String(
                     localized: "Could not remove quarantine from \(errorCount) items.",
-                    comment: "Notification body: multiple files failure")
+                    comment: "Notification body: the number of items that failed")
             return (String(localized: "Quarantine Removal Failed", comment: "Notification title: failure"), body)
         }
 
@@ -128,20 +135,29 @@ enum NotificationService {
                 body = String(
                     localized:
                         "\(items.first(where: \.status.didFreeSomething)?.name ?? "") is ready to use.",
-                    comment: "Notification body: single file success")
+                    comment: "Notification body: the one named item that was freed")
             } else {
                 body = String(
                     localized: "\(freedCount) items are ready to use.",
-                    comment: "Notification body: multiple files success")
+                    comment: "Notification body: the number of items freed")
             }
             return (String(localized: "Quarantine Removed", comment: "Notification title: success"), body)
         }
 
+        // One folder freed only in part counts as freed and as failed at once, and a
+        // count of it would read as "1 of 1 freed" right before saying some weren't.
+        let partialBody =
+            attemptedCount == 1
+            ? String(
+                localized:
+                    "Some items in \(items.first(where: \.status.hasErrors)?.name ?? "") could not be processed.",
+                comment: "Notification body: the one folder handed over was freed only in part")
+            : String(
+                localized: "\(freedCount) of \(attemptedCount) items freed. Some could not be processed.",
+                comment: "Notification body: partial success, the number of items freed of all that were tried")
         return (
             String(localized: "Quarantine Partially Removed", comment: "Notification title: partial success"),
-            String(
-                localized: "\(freedCount) of \(attemptedCount) items freed. Some could not be processed.",
-                comment: "Notification body: partial success")
+            partialBody
         )
     }
 }
