@@ -15,6 +15,15 @@
     },
     "NSHumanReadableCopyright" : {
       "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "© 2026 Benjamin Hübner"
+          }
+        }
+      },
       "shouldTranslate" : false
     }
   },

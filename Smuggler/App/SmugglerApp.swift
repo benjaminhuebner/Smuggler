@@ -21,6 +21,9 @@ struct SmugglerApp: App {
     @FocusedValue(\.chooseFiles) private var chooseFiles
     @FocusedValue(\.clearAll) private var clearAll
 
+    private static let aboutTitle = String(
+        localized: "About Smuggler", comment: "App menu item and window title: the app's version and contact links")
+
     var body: some Scene {
         Window(String(localized: "Smuggler", comment: "Window title: the brand name, never translated"), id: "main") {
             ContentView(appModel: appDelegate.appModel)
@@ -30,6 +33,12 @@ struct SmugglerApp: App {
         .defaultSize(width: 520, height: 380)
         .windowResizability(.contentSize)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button(Self.aboutTitle) {
+                    openWindow(id: "about")
+                }
+            }
+
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesButton(updater: appDelegate.updater)
             }
@@ -52,13 +61,34 @@ struct SmugglerApp: App {
 
             // Without a help book, the system's own item ends in "Help isn't available".
             CommandGroup(replacing: .help) {
-                if let readme = URL(string: "https://github.com/benjaminhuebner/Smuggler#readme") {
-                    Link(
-                        String(localized: "Smuggler Help", comment: "Help menu item: opens the app's guide on the web"),
-                        destination: readme)
-                }
+                Link(
+                    String(localized: "Smuggler Help", comment: "Help menu item: opens the app's guide on the web"),
+                    destination: ProductLinks.guide)
+
+                Divider()
+
+                Link(
+                    String(localized: "Smuggler Website", comment: "Help menu item: opens the app's website"),
+                    destination: ProductLinks.website)
+                Link(
+                    String(
+                        localized: "Support",
+                        comment: "Help menu item and About window button: opens the support form on the app's website"),
+                    destination: ProductLinks.support)
             }
         }
+
+        Window(Self.aboutTitle, id: "about") {
+            AboutView()
+                .toolbar(removing: .title)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                .windowMinimizeBehavior(.disabled)
+        }
+        .windowResizability(.contentSize)
+        .windowBackgroundDragBehavior(.enabled)
+        .defaultPosition(.center)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
 
         Settings {
             SettingsView(updater: appDelegate.updater)

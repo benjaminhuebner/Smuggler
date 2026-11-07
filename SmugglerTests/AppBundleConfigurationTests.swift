@@ -8,9 +8,18 @@
 import Foundation
 import Testing
 
+@testable import Smuggler
+
 @Suite("App bundle configuration")
 struct AppBundleConfigurationTests {
     private let info = Bundle.main.infoDictionary ?? [:]
+
+    @Test("Sparkle reads its feed over HTTPS from the app's website")
+    func feedLivesOnTheWebsite() throws {
+        let feed = try #require((info["SUFeedURL"] as? String).flatMap { URL(string: $0) })
+        #expect(feed.scheme == "https")
+        #expect(feed.host() == ProductLinks.website.host())
+    }
 
     @Test("Sparkle verifies an update's EdDSA signature before extracting it")
     func updatesAreVerifiedBeforeExtraction() {

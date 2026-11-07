@@ -493,6 +493,17 @@
         }
       }
     },
+    "About Smuggler" : {
+      "comment" : "App menu item and window title: the app's version and contact links",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über Smuggler"
+          }
+        }
+      }
+    },
     "All items canceled" : {
       "comment" : "Status bar: every item was canceled",
       "localizations" : {
@@ -783,6 +794,10 @@
           }
         }
       }
+    },
+    "GitHub" : {
+      "comment" : "About window button: opens the source code on GitHub",
+      "shouldTranslate" : false
     },
     "In progress" : {
       "comment" : "Accessibility value: work is still running",
@@ -1294,6 +1309,17 @@
         }
       }
     },
+    "Smuggler Website" : {
+      "comment" : "Help menu item: opens the app's website",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smuggler-Website"
+          }
+        }
+      }
+    },
     "Some items in %@ could not be processed." : {
       "comment" : "Notification body: the one folder handed over was freed only in part",
       "localizations" : {
@@ -1304,6 +1330,10 @@
           }
         }
       }
+    },
+    "Support" : {
+      "comment" : "Help menu item and About window button: opens the support form on the app's website",
+      "shouldTranslate" : false
     },
     "The files in this folder were skipped. Check that you can open it in Finder, then try again." : {
       "comment" : "Error recovery: folder could not be descended into",
@@ -1337,6 +1367,14 @@
           }
         }
       }
+    },
+    "Version %@ (%@)" : {
+      "comment" : "About window: the app's version, then its build number in parentheses",
+      "shouldTranslate" : false
+    },
+    "Website" : {
+      "comment" : "About window button: opens the app's website",
+      "shouldTranslate" : false
     }
   },
   "version" : "1.1"

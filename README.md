@@ -11,7 +11,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE) [![Platform: macOS 26+](https://img.shields.io/badge/platform-macOS%2026%2B-blue?style=flat-square)](#install) [![Swift 6](https://img.shields.io/badge/Swift-6-orange?style=flat-square)](#built-with) [![Latest release](https://img.shields.io/github/v/release/benjaminhuebner/Smuggler?style=flat-square&color=orange)](https://github.com/benjaminhuebner/Smuggler/releases/latest)
 
-[Why](#why-macos-refuses-to-open-your-downloads) · [Three ways in](#three-ways-in) · [What it touches](#what-it-touches) · [Install](#install) · [FAQ](#faq) · [Built with](#built-with)
+[Website](https://smuggler.benjaminhuebner.com) · [Why](#why-macos-refuses-to-open-your-downloads) · [Three ways in](#three-ways-in) · [What it touches](#what-it-touches) · [Install](#install) · [FAQ](#faq) · [Support](#support) · [Built with](#built-with)
 
 </div>
 
@@ -112,6 +112,10 @@ macOS 26 and later; older releases are not supported. The window and the Service
 
 Nothing. Smuggler is open source under the MIT license, with no account, no in-app purchase and no paid tier. The full source of both bundles is in this repository.
 
+## Support
+
+Found a bug or have a question? Use the [support form](https://smuggler.benjaminhuebner.com/support) on the website, write to [hello@benjaminhuebner.com](mailto:hello@benjaminhuebner.com) or [open an issue](https://github.com/benjaminhuebner/Smuggler/issues) here on GitHub. In the app, the Help menu leads to the website and the support form, and *About Smuggler* lists the same addresses.
+
 ## Built with
 
 Smuggler is a SwiftUI app in two bundles that share an app group: the unsandboxed app and a sandboxed FinderSync extension. That split is not optional — `removexattr()` on arbitrary paths requires no sandbox, and Finder extensions are always sandboxed. Third-party dependencies:
@@ -124,4 +128,4 @@ Everything else is Apple frameworks: Swift 6 under strict concurrency, SwiftUI w
 
 ## License
 
-[MIT](LICENSE) © 2026 Benjamin Hübner
+[MIT](LICENSE) © 2026 [Benjamin Hübner](https://benjaminhuebner.com)
