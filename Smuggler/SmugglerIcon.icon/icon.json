@@ -5,34 +5,20 @@
       "blur-material" : 0.3,
       "layers" : [
         {
-          "blend-mode" : "multiply",
-          "fill-specializations" : [
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : false,
+          "image-name" : "4e_Tape_Front_Gloss.png",
+          "name" : "Gloss",
+          "opacity-specializations" : [
             {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.56000,0.47000,0.24000,0.40000",
-                  "display-p3:0.56000,0.47000,0.24000,0.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.0,
-                    "y" : 0.5
-                  },
-                  "stop" : {
-                    "x" : 0.42,
-                    "y" : 0.5
-                  }
-                }
-              }
+              "value" : 1
             },
             {
               "appearance" : "tinted",
-              "value" : "none"
+              "value" : 0
             }
           ],
-          "glass" : false,
-          "image-name" : "4_Tape_Front.svg",
-          "name" : "Shade Left",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -43,33 +29,19 @@
         },
         {
           "blend-mode" : "multiply",
-          "fill-specializations" : [
+          "fill" : "automatic",
+          "glass" : false,
+          "image-name" : "4d_Tape_Front_Shade.png",
+          "name" : "Shade",
+          "opacity-specializations" : [
             {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.56000,0.47000,0.24000,0.40000",
-                  "display-p3:0.56000,0.47000,0.24000,0.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 1.0,
-                    "y" : 0.5
-                  },
-                  "stop" : {
-                    "x" : 0.5800000000000001,
-                    "y" : 0.5
-                  }
-                }
-              }
+              "value" : 1
             },
             {
               "appearance" : "tinted",
-              "value" : "none"
+              "value" : 0
             }
           ],
-          "glass" : false,
-          "image-name" : "4_Tape_Front.svg",
-          "name" : "Shade Right",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -82,20 +54,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "linear-gradient" : [
-                  "srgb:0.06000,0.05800,0.05200,1.00000",
-                  "srgb:0.06000,0.05800,0.05200,1.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.5,
-                    "y" : 0
-                  },
-                  "stop" : {
-                    "x" : 0.5,
-                    "y" : 1
-                  }
-                }
+                "solid" : "srgb:0.12160,0.11370,0.10980,1.00000"
               }
             },
             {
@@ -120,20 +79,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "linear-gradient" : [
-                  "display-p3:1.00000,0.88000,0.26000,1.00000",
-                  "display-p3:1.00000,0.77000,0.05000,0.94000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.5,
-                    "y" : 0
-                  },
-                  "stop" : {
-                    "x" : 0.5,
-                    "y" : 1
-                  }
-                }
+                "solid" : "srgb:0.94510,0.81570,0.32940,1.00000"
               }
             },
             {
@@ -143,7 +89,7 @@
               }
             }
           ],
-          "glass" : true,
+          "glass" : false,
           "image-name" : "4_Tape_Front.svg",
           "name" : "Band Front",
           "position" : {
@@ -167,7 +113,7 @@
         {
           "value" : {
             "kind" : "neutral",
-            "opacity" : 0.7
+            "opacity" : 0.45
           }
         },
         {
@@ -178,7 +124,7 @@
           }
         }
       ],
-      "specular" : true,
+      "specular" : false,
       "translucency" : {
         "enabled" : false,
         "value" : 0.5
@@ -232,6 +178,24 @@
     {
       "blur-material" : null,
       "layers" : [
+        {
+          "blend-mode" : "multiply",
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            }
+          ],
+          "glass" : false,
+          "image-name" : "2b_Tape_Shadow.svg",
+          "name" : "Tape Shadow",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
         {
           "blend-mode" : "normal",
           "fill-specializations" : [
@@ -305,34 +269,43 @@
       "blur-material" : 0.5,
       "layers" : [
         {
-          "blend-mode" : "multiply",
-          "fill-specializations" : [
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : false,
+          "image-name" : "1e_Tape_Back_Gloss.png",
+          "name" : "Gloss Inside",
+          "opacity-specializations" : [
             {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.56000,0.47000,0.24000,0.36000",
-                  "display-p3:0.56000,0.47000,0.24000,0.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.0,
-                    "y" : 0.5
-                  },
-                  "stop" : {
-                    "x" : 0.35,
-                    "y" : 0.5
-                  }
-                }
-              }
+              "value" : 1
             },
             {
               "appearance" : "tinted",
-              "value" : "none"
+              "value" : 0
             }
           ],
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "blend-mode" : "multiply",
+          "fill" : "automatic",
           "glass" : false,
-          "image-name" : "1_Tape_Back.svg",
-          "name" : "Shade Inside Left",
+          "image-name" : "1d_Tape_Back_Shade.png",
+          "name" : "Shade Inside",
+          "opacity-specializations" : [
+            {
+              "value" : 1
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 0
+            }
+          ],
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -345,31 +318,12 @@
           "blend-mode" : "multiply",
           "fill-specializations" : [
             {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.56000,0.47000,0.24000,0.36000",
-                  "display-p3:0.56000,0.47000,0.24000,0.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 1.0,
-                    "y" : 0.5
-                  },
-                  "stop" : {
-                    "x" : 0.65,
-                    "y" : 0.5
-                  }
-                }
-              }
-            },
-            {
-              "appearance" : "tinted",
-              "value" : "none"
+              "value" : "automatic"
             }
           ],
           "glass" : false,
-          "image-name" : "1_Tape_Back.svg",
-          "name" : "Shade Inside Right",
+          "image-name" : "1c_Ghost_Occlusion.svg",
+          "name" : "Ghost Occlusion",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -382,20 +336,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "linear-gradient" : [
-                  "srgb:0.06000,0.05800,0.05200,1.00000",
-                  "srgb:0.06000,0.05800,0.05200,1.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.5,
-                    "y" : 0
-                  },
-                  "stop" : {
-                    "x" : 0.5,
-                    "y" : 1
-                  }
-                }
+                "solid" : "srgb:0.12160,0.11370,0.10980,1.00000"
               }
             },
             {
@@ -420,20 +361,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.88000,0.74000,0.12000,1.00000",
-                  "display-p3:0.78000,0.62000,0.03000,1.00000"
-                ],
-                "orientation" : {
-                  "start" : {
-                    "x" : 0.5,
-                    "y" : 0
-                  },
-                  "stop" : {
-                    "x" : 0.5,
-                    "y" : 1
-                  }
-                }
+                "solid" : "srgb:0.86670,0.67840,0.29020,1.00000"
               }
             },
             {
@@ -443,7 +371,7 @@
               }
             }
           ],
-          "glass" : true,
+          "glass" : false,
           "image-name" : "1_Tape_Back.svg",
           "name" : "Band Back",
           "position" : {
