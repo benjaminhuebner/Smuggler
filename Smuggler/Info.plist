@@ -5,10 +5,12 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://smuggler.benjaminhuebner.com/appcast.xml</string>
+	<string>https://github.com/benjaminhuebner/Smuggler/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>ANcEZL5WMisg7M7wy6Wj6nejyankA9iYVPbzSMl5fzU=</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+	<key>SURequireSignedFeed</key>
 	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>

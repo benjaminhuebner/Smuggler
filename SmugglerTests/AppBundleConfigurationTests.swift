@@ -14,17 +14,22 @@ import Testing
 struct AppBundleConfigurationTests {
     private let info = Bundle.main.infoDictionary ?? [:]
 
-    @Test("Sparkle reads its feed over HTTPS from the app's website")
-    func feedLivesOnTheWebsite() throws {
-        let feed = try #require((info["SUFeedURL"] as? String).flatMap { URL(string: $0) })
-        #expect(feed.scheme == "https")
-        #expect(feed.host() == ProductLinks.website.host())
+    @Test("Sparkle reads its feed from the latest GitHub release")
+    func feedIsTheLatestReleaseAsset() throws {
+        let feed = try #require(info["SUFeedURL"] as? String)
+        let expected = ProductLinks.sourceCode.appending(path: "releases/latest/download/appcast.xml")
+        #expect(feed == expected.absoluteString)
     }
 
     @Test("Sparkle verifies an update's EdDSA signature before extracting it")
     func updatesAreVerifiedBeforeExtraction() {
         #expect(info["SUVerifyUpdateBeforeExtraction"] as? Bool == true)
         #expect((info["SUPublicEDKey"] as? String)?.isEmpty == false)
+    }
+
+    @Test("Sparkle trusts the appcast only with a valid EdDSA signature")
+    func feedMustBeSigned() {
+        #expect(info["SURequireSignedFeed"] as? Bool == true)
     }
 
     // The About panel prefers a localized InfoPlist.strings value, so a copy pinned
