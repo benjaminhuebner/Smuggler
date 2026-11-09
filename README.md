@@ -100,18 +100,6 @@ No. Gatekeeper, SIP and every other protection on your Mac keep running as befor
 
 You can, and it does the same job. Smuggler is for the people who should not have to: nothing to copy, no path to type or escape, and no risk of running a command from a forum post that turns out to do more than it says.
 
-### Does it handle folders and large batches?
-
-Yes. Drop in as many files and folders as you like; folders are cleared all the way down. Every item runs on its own, so one failure does not take the batch with it. You can cancel a single item mid-flight or stop everything at once.
-
-### Which macOS versions are supported?
-
-macOS 26 and later; older releases are not supported. The window and the Services entry work as soon as the app sits in `/Applications`. The Finder menu needs one switch in System Settings → General → Login Items & Extensions.
-
-### What does it cost?
-
-Nothing. Smuggler is open source under the MIT license, with no account, no in-app purchase and no paid tier. The full source of both bundles is in this repository.
-
 ## Support
 
 Found a bug or have a question? Use the [support form](https://smuggler.benjaminhuebner.com/support) on the website, write to [hello@benjaminhuebner.com](mailto:hello@benjaminhuebner.com) or [open an issue](https://github.com/benjaminhuebner/Smuggler/issues) here on GitHub. In the app, the Help menu leads to the website and the support form, and *About Smuggler* lists the same addresses.
